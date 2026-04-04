@@ -62,9 +62,9 @@ Run `transmitter`:
 ./install.sh \
   --mode transmitter \
   --upstream-server 0.0.0.0 \
-  --upstream-port 8444 \
+  --upstream-port 8554 \
   --downstream-server 0.0.0.0 \
-  --downstream-port 8443
+  --downstream-port 8553
 ```
 
 Run `receiver`:
@@ -72,10 +72,10 @@ Run `receiver`:
 ```bash
 ./install.sh \
   --mode receiver \
-  --upstream-server 94.177.170.43 \
-  --upstream-port 8443 \
-  --downstream-server 0.0.0.0 \
-  --downstream-port 8444
+  --upstream-server 0.0.0.0 \
+  --upstream-port 8553 \
+  --downstream-server 194.87.236.129 \
+  --downstream-port 8555
 ```
 
 Additional options:
