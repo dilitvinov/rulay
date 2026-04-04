@@ -4,20 +4,40 @@ set -eu
 IMAGE_NAME="${IMAGE_NAME:-rulay}"
 CONTAINER_NAME="${CONTAINER_NAME:-rulay}"
 MODE=""
-UPSTREAM_ADDR=""
-DOWNSTREAM_ADDR=""
+UPSTREAM_SERVER=""
+UPSTREAM_PORT=""
+DOWNSTREAM_SERVER=""
+DOWNSTREAM_PORT=""
 NO_RUN=0
+
+default_upstream_port() {
+    case "$1" in
+        transmitter) echo "8444" ;;
+        receiver) echo "8443" ;;
+        *) return 1 ;;
+    esac
+}
+
+default_downstream_port() {
+    case "$1" in
+        transmitter) echo "8443" ;;
+        receiver) echo "8444" ;;
+        *) return 1 ;;
+    esac
+}
 
 usage() {
     cat <<'EOF'
 Usage:
-  ./install.sh --mode <receiver|transmitter> [--upstream-addr host:port] [--downstream-addr host:port] [--image-name name] [--container-name name]
+  ./install.sh --mode <receiver|transmitter> [--upstream-server host] [--upstream-port port] [--downstream-server host] [--downstream-port port] [--image-name name] [--container-name name]
   ./install.sh --build-only [--image-name name]
 
 Options:
   --mode              Runtime mode for the rulay binary.
-  --upstream-addr     Optional upstream address override.
-  --downstream-addr   Optional downstream address override.
+  --upstream-server   Optional upstream host override.
+  --upstream-port     Optional upstream port override.
+  --downstream-server Optional downstream host override.
+  --downstream-port   Optional downstream port override.
   --image-name        Docker image tag. Default: rulay
   --container-name    Docker container name. Default: rulay
   --build-only        Build the image and exit without starting a container.
@@ -34,12 +54,20 @@ while [ "$#" -gt 0 ]; do
             MODE="$2"
             shift 2
             ;;
-        --upstream-addr)
-            UPSTREAM_ADDR="$2"
+        --upstream-server)
+            UPSTREAM_SERVER="$2"
             shift 2
             ;;
-        --downstream-addr)
-            DOWNSTREAM_ADDR="$2"
+        --upstream-port)
+            UPSTREAM_PORT="$2"
+            shift 2
+            ;;
+        --downstream-server)
+            DOWNSTREAM_SERVER="$2"
+            shift 2
+            ;;
+        --downstream-port)
+            DOWNSTREAM_PORT="$2"
             shift 2
             ;;
         --image-name)
@@ -80,20 +108,34 @@ fi
 
 docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
 
+if [ -z "$UPSTREAM_PORT" ]; then
+    UPSTREAM_PORT="$(default_upstream_port "$MODE")"
+fi
+
+if [ -z "$DOWNSTREAM_PORT" ]; then
+    DOWNSTREAM_PORT="$(default_downstream_port "$MODE")"
+fi
+
 docker run -d \
     --name "$CONTAINER_NAME" \
     -e MODE="$MODE" \
-    -e UPSTREAM_ADDR="$UPSTREAM_ADDR" \
-    -e DOWNSTREAM_ADDR="$DOWNSTREAM_ADDR" \
+    -e UPSTREAM_SERVER="$UPSTREAM_SERVER" \
+    -e UPSTREAM_PORT="$UPSTREAM_PORT" \
+    -e DOWNSTREAM_SERVER="$DOWNSTREAM_SERVER" \
+    -e DOWNSTREAM_PORT="$DOWNSTREAM_PORT" \
+    -p "$UPSTREAM_PORT:$UPSTREAM_PORT" \
+    -p "$DOWNSTREAM_PORT:$DOWNSTREAM_PORT" \
     "$IMAGE_NAME"
 
 echo "Container started:"
 echo "  image=$IMAGE_NAME"
 echo "  container=$CONTAINER_NAME"
 echo "  mode=$MODE"
-if [ -n "$UPSTREAM_ADDR" ]; then
-    echo "  upstream_addr=$UPSTREAM_ADDR"
+if [ -n "$UPSTREAM_SERVER" ]; then
+    echo "  upstream_server=$UPSTREAM_SERVER"
 fi
-if [ -n "$DOWNSTREAM_ADDR" ]; then
-    echo "  downstream_addr=$DOWNSTREAM_ADDR"
+echo "  upstream_port=$UPSTREAM_PORT"
+if [ -n "$DOWNSTREAM_SERVER" ]; then
+    echo "  downstream_server=$DOWNSTREAM_SERVER"
 fi
+echo "  downstream_port=$DOWNSTREAM_PORT"

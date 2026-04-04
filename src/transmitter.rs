@@ -55,11 +55,13 @@ pub fn start_transmitter(upstream_addr: String, downstream_addr: String) {
                 for mut stream in v {
                     if let Ok(_) = stream.0.write_all(PING).await {
                         let mut buf: [u8; 4] = [0; 4];
-                        if let Ok(_) = stream.0.read(&mut buf).await
-                            && buf != PONG
-                        {
-                            println!("conn closed from upstream {}", stream.1);
-                            continue; // close stream
+                        match stream.0.read(&mut buf).await {
+                            Ok(_) if buf != PONG => {
+                                println!("conn closed from upstream {}", stream.1);
+                                continue; // close stream
+                            }
+                            Ok(_) => {}
+                            Err(_) => {}
                         }
                         if let Ok(mut arr) = addr_stack.lock() {
                             arr.push(stream);

@@ -10,17 +10,25 @@ struct Args {
     #[arg(long, value_enum)]
     mode: Mode,
     #[arg(long)]
-    upstream_addr: Option<String>,
+    upstream_server: Option<String>,
     #[arg(long)]
-    downstream_addr: Option<String>,
+    upstream_port: Option<u16>,
+    #[arg(long)]
+    downstream_server: Option<String>,
+    #[arg(long)]
+    downstream_port: Option<u16>,
 }
 const PING: &[u8] = &[1, 62, 34, 6];
 const PONG: &[u8] = &[6, 34, 62, 1];
 
-const TRANSMITTER_UPSTREAM_ADDR: &str = "0.0.0.0:8444";
-const TRANSMITTER_DOWNSTREAM_ADDR: &str = "0.0.0.0:8443";
-const RECEIVER_UPSTREAM_ADDR: &str = "94.177.170.43:8443";
-const RECEIVER_DOWNSTREAM_ADDR: &str = "0.0.0.0:8444";
+const TRANSMITTER_UPSTREAM_SERVER: &str = "0.0.0.0";
+const TRANSMITTER_UPSTREAM_PORT: u16 = 8444;
+const TRANSMITTER_DOWNSTREAM_SERVER: &str = "0.0.0.0";
+const TRANSMITTER_DOWNSTREAM_PORT: u16 = 8443;
+const RECEIVER_UPSTREAM_SERVER: &str = "94.177.170.43";
+const RECEIVER_UPSTREAM_PORT: u16 = 8443;
+const RECEIVER_DOWNSTREAM_SERVER: &str = "0.0.0.0";
+const RECEIVER_DOWNSTREAM_PORT: u16 = 8444;
 
 #[derive(Copy, Clone, Debug, ValueEnum)]
 enum Mode {
@@ -37,18 +45,34 @@ fn main() {
     match args.mode {
         Mode::Transmitter => {
             start_transmitter(
-                args.upstream_addr
-                    .unwrap_or_else(|| TRANSMITTER_UPSTREAM_ADDR.to_string()),
-                args.downstream_addr
-                    .unwrap_or_else(|| TRANSMITTER_DOWNSTREAM_ADDR.to_string()),
+                format!(
+                    "{}:{}",
+                    args.upstream_server
+                        .unwrap_or_else(|| TRANSMITTER_UPSTREAM_SERVER.to_string()),
+                    args.upstream_port.unwrap_or(TRANSMITTER_UPSTREAM_PORT)
+                ),
+                format!(
+                    "{}:{}",
+                    args.downstream_server
+                        .unwrap_or_else(|| TRANSMITTER_DOWNSTREAM_SERVER.to_string()),
+                    args.downstream_port.unwrap_or(TRANSMITTER_DOWNSTREAM_PORT)
+                ),
             );
         }
         Mode::Receiver => {
             start_receiver(
-                args.upstream_addr
-                    .unwrap_or_else(|| RECEIVER_UPSTREAM_ADDR.to_string()),
-                args.downstream_addr
-                    .unwrap_or_else(|| RECEIVER_DOWNSTREAM_ADDR.to_string()),
+                format!(
+                    "{}:{}",
+                    args.upstream_server
+                        .unwrap_or_else(|| RECEIVER_UPSTREAM_SERVER.to_string()),
+                    args.upstream_port.unwrap_or(RECEIVER_UPSTREAM_PORT)
+                ),
+                format!(
+                    "{}:{}",
+                    args.downstream_server
+                        .unwrap_or_else(|| RECEIVER_DOWNSTREAM_SERVER.to_string()),
+                    args.downstream_port.unwrap_or(RECEIVER_DOWNSTREAM_PORT)
+                ),
             );
         }
     }

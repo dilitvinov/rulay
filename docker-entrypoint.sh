@@ -13,12 +13,20 @@ fi
 
 set -- --mode "$MODE"
 
-if [ -n "${UPSTREAM_ADDR:-}" ]; then
-    set -- "$@" --upstream-addr "$UPSTREAM_ADDR"
+if [ -n "${UPSTREAM_SERVER:-}" ]; then
+    set -- "$@" --upstream-server "$UPSTREAM_SERVER"
 fi
 
-if [ -n "${DOWNSTREAM_ADDR:-}" ]; then
-    set -- "$@" --downstream-addr "$DOWNSTREAM_ADDR"
+if [ -n "${UPSTREAM_PORT:-}" ]; then
+    set -- "$@" --upstream-port "$UPSTREAM_PORT"
+fi
+
+if [ -n "${DOWNSTREAM_SERVER:-}" ]; then
+    set -- "$@" --downstream-server "$DOWNSTREAM_SERVER"
+fi
+
+if [ -n "${DOWNSTREAM_PORT:-}" ]; then
+    set -- "$@" --downstream-port "$DOWNSTREAM_PORT"
 fi
 
 exec /usr/local/bin/rulay "$@"
