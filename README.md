@@ -1,7 +1,114 @@
+# rulay
+
+`rulay` runs in one of two modes:
+
+- `transmitter`
+- `receiver`
+
+Both modes accept runtime connection parameters as separate server and port values:
+
+- `--upstream-server`
+- `--upstream-port`
+- `--downstream-server`
+- `--downstream-port`
+
+## Local Run
+
+Build:
+
+```bash
+cargo build --release
+```
+
+Run `transmitter`:
+
+```bash
+cargo run -- \
+  --mode transmitter \
+  --upstream-server 0.0.0.0 \
+  --upstream-port 8444 \
+  --downstream-server 0.0.0.0 \
+  --downstream-port 8443
+```
+
+Run `receiver`:
+
+```bash
+cargo run -- \
+  --mode receiver \
+  --upstream-server 94.177.170.43 \
+  --upstream-port 8443 \
+  --downstream-server 0.0.0.0 \
+  --downstream-port 8444
+```
+
+If any of these parameters are omitted, mode-specific defaults are used.
+
+## Docker Build
+
+Build only:
+
+```bash
 ./install.sh --build-only
+```
 
-./install.sh --mode transmitter --upstream-addr 0.0.0.0:8444
---downstream-addr 0.0.0.0:8443
+This creates the Docker image `rulay` by default.
 
-./install.sh --mode receiver --upstream-addr 1.2.3.4:8443
---downstream-addr 5.6.7.8:8444
+## Docker Run Via install.sh
+
+Run `transmitter`:
+
+```bash
+./install.sh \
+  --mode transmitter \
+  --upstream-server 0.0.0.0 \
+  --upstream-port 8444 \
+  --downstream-server 0.0.0.0 \
+  --downstream-port 8443
+```
+
+Run `receiver`:
+
+```bash
+./install.sh \
+  --mode receiver \
+  --upstream-server 94.177.170.43 \
+  --upstream-port 8443 \
+  --downstream-server 0.0.0.0 \
+  --downstream-port 8444
+```
+
+Additional options:
+
+- `--image-name <name>`
+- `--container-name <name>`
+- `--build-only`
+
+`install.sh` publishes both configured ports from the container to the host using the same port numbers.
+
+Examples:
+
+- `--upstream-port 9001` results in `-p 9001:9001`
+- `--downstream-port 9002` results in `-p 9002:9002`
+
+If a port is not passed to `install.sh`, the script uses the mode default and publishes that default port.
+
+## Direct docker run
+
+You can also run the image directly:
+
+```bash
+docker build -t rulay .
+```
+
+```bash
+docker run --rm \
+  -e MODE=transmitter \
+  -e UPSTREAM_SERVER=0.0.0.0 \
+  -e UPSTREAM_PORT=8444 \
+  -e DOWNSTREAM_SERVER=0.0.0.0 \
+  -e DOWNSTREAM_PORT=8443 \
+  -p 8444:8444 \
+  -p 8443:8443 \
+  rulay
+```
