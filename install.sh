@@ -116,16 +116,23 @@ if [ -z "$DOWNSTREAM_PORT" ]; then
     DOWNSTREAM_PORT="$(default_downstream_port "$MODE")"
 fi
 
-docker run -d \
+set -- docker run -d \
     --name "$CONTAINER_NAME" \
     -e MODE="$MODE" \
     -e UPSTREAM_SERVER="$UPSTREAM_SERVER" \
     -e UPSTREAM_PORT="$UPSTREAM_PORT" \
     -e DOWNSTREAM_SERVER="$DOWNSTREAM_SERVER" \
-    -e DOWNSTREAM_PORT="$DOWNSTREAM_PORT" \
-    -p "$UPSTREAM_PORT:$UPSTREAM_PORT" \
-    -p "$DOWNSTREAM_PORT:$DOWNSTREAM_PORT" \
-    "$IMAGE_NAME"
+    -e DOWNSTREAM_PORT="$DOWNSTREAM_PORT"
+
+if [ "$MODE" = "transmitter" ]; then
+    set -- "$@" \
+        -p "$UPSTREAM_PORT:$UPSTREAM_PORT" \
+        -p "$DOWNSTREAM_PORT:$DOWNSTREAM_PORT"
+fi
+
+set -- "$@" "$IMAGE_NAME"
+
+"$@"
 
 echo "Container started:"
 echo "  image=$IMAGE_NAME"
@@ -139,3 +146,6 @@ if [ -n "$DOWNSTREAM_SERVER" ]; then
     echo "  downstream_server=$DOWNSTREAM_SERVER"
 fi
 echo "  downstream_port=$DOWNSTREAM_PORT"
+if [ "$MODE" = "transmitter" ]; then
+    echo "  published_ports=$UPSTREAM_PORT,$DOWNSTREAM_PORT"
+fi
