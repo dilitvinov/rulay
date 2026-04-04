@@ -118,6 +118,7 @@ fi
 
 set -- docker run -d \
     --name "$CONTAINER_NAME" \
+    --add-host host.docker.internal:host-gateway \
     -e MODE="$MODE" \
     -e UPSTREAM_SERVER="$UPSTREAM_SERVER" \
     -e UPSTREAM_PORT="$UPSTREAM_PORT" \
