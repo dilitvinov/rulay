@@ -86,6 +86,17 @@ SHORT_ID="${SHORT_ID:-$(awk '
   }
 ' "${CONFIG_PATH}")}"
 
+FLOW="${FLOW:-$(awk '
+  /"clients"[[:space:]]*:/ { clients=1 }
+  clients && /"flow"[[:space:]]*:/ {
+    line=$0
+    sub(/^.*"flow"[[:space:]]*:[[:space:]]*"/, "", line)
+    sub(/".*$/, "", line)
+    print line
+    exit
+  }
+' "${CONFIG_PATH}")}"
+
 CLIENT_NAME="${CLIENT_NAME:-reality-${SERVER_HOST}}"
 
 if [[ -z "${XRAY_PORT}" || -z "${UUID}" || -z "${PRIVATE_KEY}" || -z "${REALITY_SERVER_NAME}" || -z "${REALITY_DEST}" || -z "${SHORT_ID}" ]]; then
@@ -130,7 +141,13 @@ ufw --force enable
 cd "${DEPLOY_DIR}"
 docker compose up -d
 
-VLESS_URL="vless://${UUID}@${SERVER_HOST}:${XRAY_PORT}?type=tcp&security=reality&pbk=${PUBLIC_KEY}&fp=chrome&sni=${REALITY_SERVER_NAME}&sid=${SHORT_ID}&spx=%2F&flow=xtls-rprx-vision&encryption=none#${CLIENT_NAME}"
+VLESS_URL="vless://${UUID}@${SERVER_HOST}:${XRAY_PORT}?type=tcp&security=reality&pbk=${PUBLIC_KEY}&fp=chrome&sni=${REALITY_SERVER_NAME}&sid=${SHORT_ID}&spx=%2F&encryption=none"
+
+if [[ -n "${FLOW}" ]]; then
+  VLESS_URL="${VLESS_URL}&flow=${FLOW}"
+fi
+
+VLESS_URL="${VLESS_URL}#${CLIENT_NAME}"
 
 cat <<INFO
 Deploy completed.

@@ -1,6 +1,8 @@
 {
   "log": {
-    "loglevel": "warning"
+    "access": "/dev/stdout",
+    "error": "/dev/stderr",
+    "loglevel": "debug"
   },
   "routing": {
     "domainStrategy": "AsIs",
@@ -37,7 +39,7 @@
         "clients": [
           {
             "email": "b7tiwdzd",
-            "flow": "",
+            "flow": "xtls-rprx-vision",
             "id": "eb8a761e-1a8a-4e80-a268-7d35614f21e6"
           }
         ],
@@ -48,12 +50,12 @@
         "network": "tcp",
         "realitySettings": {
           "maxClientVer": "",
-          "maxTimediff": 0,
+          "maxTimeDiff": 0,
           "minClientVer": "",
           "mldsa65Seed": "F-31ompjk7zsivD7iG33MSwtdmzmzd8VO1aA6pjW77s",
           "privateKey": "uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE",
           "serverNames": [
-            "strm-mar-190.strm.yandex.net/"
+            "strm-mar-190.strm.yandex.net"
           ],
           "shortIds": [
             "584cd7313829f366",
@@ -65,7 +67,7 @@
             "ed75",
             "d0"
           ],
-          "show": false,
+          "show": true,
           "target": "strm-mar-190.strm.yandex.net:443",
           "xver": 0
         },
