@@ -100,7 +100,7 @@
     },
     {
       "protocol": "blackhole",
-      "tag": "block"
+      "tag": "blocked"
     }
   ]
 }
