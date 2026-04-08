@@ -111,11 +111,12 @@ cp "${CONFIG_PATH}" "${DEPLOY_DIR}/config.json"
 
 docker pull ghcr.io/xtls/xray-core:latest >/dev/null
 
-KEYPAIR="$(docker run --rm ghcr.io/xtls/xray-core:latest x25519 -i "${PRIVATE_KEY}")"
-PUBLIC_KEY="$(printf '%s\n' "${KEYPAIR}" | awk '/Public key:/ { print $3 }')"
+KEYPAIR="$(docker run --rm ghcr.io/xtls/xray-core:latest x25519 -i "${PRIVATE_KEY}" 2>&1 || true)"
+PUBLIC_KEY="$(printf '%s\n' "${KEYPAIR}" | awk '/Public key:|Password:/ { print $3; exit }')"
 
 if [[ -z "${PUBLIC_KEY}" ]]; then
   echo "Failed to generate public key from private key"
+  printf '%s\n' "${KEYPAIR}"
   exit 1
 fi
 
