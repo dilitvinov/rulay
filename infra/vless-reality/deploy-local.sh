@@ -111,7 +111,7 @@ cp "${CONFIG_PATH}" "${DEPLOY_DIR}/config.json"
 
 docker pull ghcr.io/xtls/xray-core:latest >/dev/null
 
-KEYPAIR="$(docker run --rm ghcr.io/xtls/xray-core:latest xray x25519 -i "${PRIVATE_KEY}")"
+KEYPAIR="$(docker run --rm ghcr.io/xtls/xray-core:latest x25519 -i "${PRIVATE_KEY}")"
 PUBLIC_KEY="$(printf '%s\n' "${KEYPAIR}" | awk '/Public key:/ { print $3 }')"
 
 if [[ -z "${PUBLIC_KEY}" ]]; then
