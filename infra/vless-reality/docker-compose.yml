@@ -1,0 +1,13 @@
+services:
+  xray:
+    image: ghcr.io/xtls/xray-core:latest
+    container_name: xray-reality
+    restart: unless-stopped
+    command:
+      - run
+      - -c
+      - /usr/local/etc/xray/config.json
+    ports:
+      - "${XRAY_PORT}:${XRAY_PORT}/tcp"
+    volumes:
+      - ./config.json:/usr/local/etc/xray/config.json:ro
