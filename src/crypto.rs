@@ -107,7 +107,14 @@ pub fn verify_reality_auth(buf: &[u8], server_priv_b64: &str) -> Result<bool, &'
     let hkdf_salt = &client_random[..20]; // → HKDF salt
     let gcm_nonce = &client_random[20..]; // → AES-GCM nonce (12 bytes)
 
-    // session_id ciphertext: buf[44..76] (16 bytes ct + 16 bytes GCM tag)
+    // session_id: buf[43] = len, buf[44..44+len] = ciphertext (16 bytes plaintext + 16 bytes GCM tag = 32)
+    let sid_len = buf[43] as usize;
+    if sid_len != 32 {
+        return Ok(false);
+    }
+    if buf.len() < 44 + 32 {
+        return Err("buf too short: session_id");
+    }
     let session_id_ct = &buf[44..76];
 
     let client_pub_bytes = parse_key_share_bytes(buf)?;

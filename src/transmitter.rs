@@ -88,9 +88,14 @@ pub fn start_transmitter(
                     if let Ok((mut stream_a, addr)) = listener.accept().await {
                         println!("accepted from downstream {}", addr);
 
-                        let mut buf = [0u8; 1024];
-                        let n = stream_a.read(&mut buf).await.unwrap_or_default();
-                        match verify_reality_auth(&buf[..n], &server_priv_b64) {
+                        let buf = match read_tls_record(&mut stream_a).await {
+                            Ok(b) => b,
+                            Err(e) => {
+                                eprintln!("read_tls_record from {}: {}", addr, e);
+                                continue;
+                            }
+                        };
+                        match verify_reality_auth(&buf, &server_priv_b64) {
                             Ok(true)  => {
                                 println!("reality auth: OK");
                                 'inner: loop {
@@ -99,7 +104,7 @@ pub fn start_transmitter(
                                     }
                                     match from_arr {
                                         Some(mut stream_b) => {
-                                            stream_b.0.write_all(&buf[..n]).await.unwrap();
+                                            stream_b.0.write_all(&buf).await.unwrap();
                                             println!(
                                                 "starting copy_bidirectional {} <-> {}",
                                                 addr, stream_b.1
@@ -118,7 +123,7 @@ pub fn start_transmitter(
                             Ok(false) | Err(_) => {
                                 println!("reality auth: FAILED, redirecting...");
                                 let redirect_addr = redirect_addr.clone();
-                                start_redirect(redirect_addr, stream_a, &buf[..n]).await;
+                                start_redirect(redirect_addr, stream_a, &buf).await;
                             }
                         }
                     }
@@ -129,6 +134,19 @@ pub fn start_transmitter(
             }
         }
     });
+}
+
+/// Reads exactly one TLS record from the stream.
+/// Returns the full raw bytes: 5-byte header + body.
+async fn read_tls_record(stream: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
+    let mut header = [0u8; 5];
+    stream.read_exact(&mut header).await?;
+    let body_len = u16::from_be_bytes([header[3], header[4]]) as usize;
+    let mut buf = Vec::with_capacity(5 + body_len);
+    buf.extend_from_slice(&header);
+    buf.resize(5 + body_len, 0);
+    stream.read_exact(&mut buf[5..]).await?;
+    Ok(buf)
 }
 
 async fn start_redirect(redirect_addr: String, mut to_user: TcpStream, read_buffer : &[u8]) {

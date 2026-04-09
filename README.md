@@ -79,7 +79,7 @@ Run `receiver`:
 ```bash
 ./install.sh \
   --mode receiver \
-  --upstream-server 0.0.0.0 \
+  --upstream-server  host.docker.internal  \
   --upstream-port 8553 \
   --downstream-server 194.87.236.129 \
   --downstream-port 8554
