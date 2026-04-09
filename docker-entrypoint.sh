@@ -33,4 +33,8 @@ if [ -n "${SERVER_PRIV:-}" ]; then
     set -- "$@" --server-priv "$SERVER_PRIV"
 fi
 
+if [ -n "${REDIRECT_SERVER:-}" ]; then
+    set -- "$@" --redirect-server "$REDIRECT_SERVER"
+fi
+
 exec /usr/local/bin/rulay "$@"

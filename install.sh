@@ -8,6 +8,8 @@ UPSTREAM_SERVER=""
 UPSTREAM_PORT=""
 DOWNSTREAM_SERVER=""
 DOWNSTREAM_PORT=""
+SERVER_PRIV=""
+REDIRECT_SERVER=""
 NO_RUN=0
 
 default_upstream_port() {
@@ -29,7 +31,7 @@ default_downstream_port() {
 usage() {
     cat <<'EOF'
 Usage:
-  ./install.sh --mode <receiver|transmitter> [--upstream-server host] [--upstream-port port] [--downstream-server host] [--downstream-port port] [--image-name name] [--container-name name]
+  ./install.sh --mode <receiver|transmitter> [--upstream-server host] [--upstream-port port] [--downstream-server host] [--downstream-port port] [--server-priv key] [--redirect-server host:port] [--image-name name] [--container-name name]
   ./install.sh --build-only [--image-name name]
 
 Options:
@@ -38,6 +40,8 @@ Options:
   --upstream-port     Optional upstream port override.
   --downstream-server Optional downstream host override.
   --downstream-port   Optional downstream port override.
+  --server-priv       Base64url X25519 private key for REALITY auth (transmitter).
+  --redirect-server   Host:port to redirect non-REALITY clients to (transmitter).
   --image-name        Docker image tag. Default: rulay
   --container-name    Docker container name. Default: rulay
   --build-only        Build the image and exit without starting a container.
@@ -76,6 +80,14 @@ while [ "$#" -gt 0 ]; do
             ;;
         --container-name)
             CONTAINER_NAME="$2"
+            shift 2
+            ;;
+        --server-priv)
+            SERVER_PRIV="$2"
+            shift 2
+            ;;
+        --redirect-server)
+            REDIRECT_SERVER="$2"
             shift 2
             ;;
         --build-only)
@@ -123,7 +135,9 @@ set -- docker run -d \
     -e UPSTREAM_SERVER="$UPSTREAM_SERVER" \
     -e UPSTREAM_PORT="$UPSTREAM_PORT" \
     -e DOWNSTREAM_SERVER="$DOWNSTREAM_SERVER" \
-    -e DOWNSTREAM_PORT="$DOWNSTREAM_PORT"
+    -e DOWNSTREAM_PORT="$DOWNSTREAM_PORT" \
+    -e SERVER_PRIV="$SERVER_PRIV" \
+    -e REDIRECT_SERVER="$REDIRECT_SERVER"
 
 if [ "$MODE" = "transmitter" ]; then
     set -- "$@" \
@@ -147,6 +161,12 @@ if [ -n "$DOWNSTREAM_SERVER" ]; then
     echo "  downstream_server=$DOWNSTREAM_SERVER"
 fi
 echo "  downstream_port=$DOWNSTREAM_PORT"
+if [ -n "$SERVER_PRIV" ]; then
+    echo "  server_priv=***"
+fi
+if [ -n "$REDIRECT_SERVER" ]; then
+    echo "  redirect_server=$REDIRECT_SERVER"
+fi
 if [ "$MODE" = "transmitter" ]; then
     echo "  published_ports=$UPSTREAM_PORT,$DOWNSTREAM_PORT"
 fi

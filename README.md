@@ -69,8 +69,9 @@ Run `transmitter`:
   --upstream-server 0.0.0.0 \
   --upstream-port 8554 \
   --downstream-server 0.0.0.0 \
-  --downstream-port 8553 \
-  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE
+  --downstream-port 443 \
+  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE \
+  --redirect-server strm-mar-190.strm.yandex.net:443
 ```
 
 Run `receiver`:
