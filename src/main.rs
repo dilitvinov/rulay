@@ -1,3 +1,4 @@
+mod crypto;
 mod receiver;
 mod transmitter;
 
@@ -17,6 +18,11 @@ struct Args {
     downstream_server: Option<String>,
     #[arg(long)]
     downstream_port: Option<u16>,
+    /// Base64url (no-pad) encoded 32-byte X25519 server private key for REALITY auth
+    #[arg(long)]
+    server_priv: Option<String>,
+    #[arg(long)]
+    redirect_server: Option<String>,
 }
 const PING: &[u8] = &[1, 62, 34, 6];
 const PONG: &[u8] = &[6, 34, 62, 1];
@@ -24,7 +30,7 @@ const PONG: &[u8] = &[6, 34, 62, 1];
 const TRANSMITTER_UPSTREAM_SERVER: &str = "0.0.0.0";
 const TRANSMITTER_UPSTREAM_PORT: u16 = 8444;
 const TRANSMITTER_DOWNSTREAM_SERVER: &str = "0.0.0.0";
-const TRANSMITTER_DOWNSTREAM_PORT: u16 = 8443;
+const TRANSMITTER_DOWNSTREAM_PORT: u16 = 443;
 const RECEIVER_UPSTREAM_SERVER: &str = "0.0.0.0";
 const RECEIVER_UPSTREAM_PORT: u16 = 8443;
 const RECEIVER_DOWNSTREAM_SERVER: &str = "0.0.0.0";
@@ -57,6 +63,8 @@ fn main() {
                         .unwrap_or_else(|| TRANSMITTER_DOWNSTREAM_SERVER.to_string()),
                     args.downstream_port.unwrap_or(TRANSMITTER_DOWNSTREAM_PORT)
                 ),
+                args.redirect_server.unwrap_or_default(),
+                args.server_priv.unwrap_or_default(),
             );
         }
         Mode::Receiver => {

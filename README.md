@@ -12,6 +12,10 @@ Both modes accept runtime connection parameters as separate server and port valu
 - `--downstream-server`
 - `--downstream-port`
 
+Transmitter mode also accepts:
+
+- `--server-priv` — base64url (no-pad) encoded 32-byte X25519 server private key for REALITY auth verification
+
 ## Local Run
 
 Build:
@@ -28,7 +32,8 @@ cargo run -- \
   --upstream-server 0.0.0.0 \
   --upstream-port 8444 \
   --downstream-server 0.0.0.0 \
-  --downstream-port 8443
+  --downstream-port 8443 \
+  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE
 ```
 
 Run `receiver`:
@@ -64,7 +69,8 @@ Run `transmitter`:
   --upstream-server 0.0.0.0 \
   --upstream-port 8554 \
   --downstream-server 0.0.0.0 \
-  --downstream-port 8553
+  --downstream-port 8553 \
+  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE
 ```
 
 Run `receiver`:
@@ -108,6 +114,7 @@ docker run --rm \
   -e UPSTREAM_PORT=8444 \
   -e DOWNSTREAM_SERVER=0.0.0.0 \
   -e DOWNSTREAM_PORT=8443 \
+  -e SERVER_PRIV=uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE \
   -p 8444:8444 \
   -p 8443:8443 \
   rulay
