@@ -2,10 +2,12 @@
 
 `rulay` runs in one of two modes:
 
-- `transmitter`
-- `receiver`
+- `transmitter` — accepts connections from clients and receivers, verifies REALITY auth, proxies traffic
+- `receiver` — connects to the transmitter and bridges it to the target upstream
 
-Both modes accept runtime connection parameters as separate server and port values:
+## Parameters
+
+Both modes accept:
 
 - `--upstream-server`
 - `--upstream-port`
@@ -15,6 +17,9 @@ Both modes accept runtime connection parameters as separate server and port valu
 Transmitter mode also accepts:
 
 - `--server-priv` — base64url (no-pad) encoded 32-byte X25519 server private key for REALITY auth verification
+- `--redirect-server` — `host:port` to redirect non-REALITY clients to (e.g. a cover website)
+
+If any parameter is omitted, mode-specific defaults are used.
 
 ## Local Run
 
@@ -32,8 +37,9 @@ cargo run -- \
   --upstream-server 0.0.0.0 \
   --upstream-port 8444 \
   --downstream-server 0.0.0.0 \
-  --downstream-port 8443 \
-  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE
+  --downstream-port 443 \
+  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE \
+  --redirect-server strm-mar-190.strm.yandex.net:443
 ```
 
 Run `receiver`:
@@ -47,19 +53,34 @@ cargo run -- \
   --downstream-port 8444
 ```
 
-If any of these parameters are omitted, mode-specific defaults are used.
+## Cross-compilation (macOS → Linux x86_64)
+
+The Docker image targets `linux/amd64`. To build the binary on macOS without Docker:
+
+```bash
+brew install zig
+cargo install cargo-zigbuild
+rustup target add x86_64-unknown-linux-gnu
+cargo zigbuild --release --target x86_64-unknown-linux-gnu
+```
+
+The binary is placed at `target/x86_64-unknown-linux-gnu/release/rulay` and is picked up by the Dockerfile directly.
 
 ## Docker Build
 
-Build only:
+Build the image (uses the pre-compiled binary from `target/x86_64-unknown-linux-gnu/release/rulay`):
 
 ```bash
 ./install.sh --build-only
 ```
 
-This creates the Docker image `rulay` by default.
+Or directly:
 
-## Docker Run Via install.sh
+```bash
+docker build -t rulay .
+```
+
+## Docker Run via install.sh
 
 Run `transmitter`:
 
@@ -87,36 +108,25 @@ Run `receiver`:
 
 Additional options:
 
-- `--image-name <name>`
-- `--container-name <name>`
-- `--build-only`
+- `--image-name <name>` — Docker image tag (default: `rulay`)
+- `--container-name <name>` — container name (default: `rulay`)
+- `--build-only` — build the image and exit without starting a container
 
 `install.sh` publishes both configured ports from the container to the host using the same port numbers.
 
-Examples:
-
-- `--upstream-port 9001` results in `-p 9001:9001`
-- `--downstream-port 9002` results in `-p 9002:9002`
-
-If a port is not passed to `install.sh`, the script uses the mode default and publishes that default port.
-
 ## Direct docker run
-
-You can also run the image directly:
-
-```bash
-docker build -t rulay .
-```
 
 ```bash
 docker run --rm \
+  --add-host host.docker.internal:host-gateway \
   -e MODE=transmitter \
   -e UPSTREAM_SERVER=0.0.0.0 \
   -e UPSTREAM_PORT=8444 \
   -e DOWNSTREAM_SERVER=0.0.0.0 \
-  -e DOWNSTREAM_PORT=8443 \
+  -e DOWNSTREAM_PORT=443 \
   -e SERVER_PRIV=uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE \
+  -e REDIRECT_SERVER=strm-mar-190.strm.yandex.net:443 \
   -p 8444:8444 \
-  -p 8443:8443 \
+  -p 443:443 \
   rulay
 ```
