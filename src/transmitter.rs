@@ -75,7 +75,6 @@ pub fn start_transmitter(
                         }
                     }
                 }
-                println!("ping complete. len={}", counter);
             }
         });
 
