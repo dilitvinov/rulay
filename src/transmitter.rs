@@ -91,32 +91,39 @@ pub fn start_transmitter(
                         };
                         if let Ok(true) = verify_reality_auth(&buf, &server_priv_b64) {
                             println!("reality auth: OK");
-                            'inner: loop {
-                                let mut guard = addr_stack.lock().await;
-                                let from_arr = guard.pop();
-                                drop(guard);
-                                match from_arr {
-                                    Some(mut stream_b) => {
-                                        stream_b.0.write_all(&buf).await.unwrap();
-                                        println!(
-                                            "starting copy_bidirectional {} <-> {}",
-                                            addr, stream_b.1
-                                        );
-                                        spawn(async move {
-                                            let _ = copy_bidirectional(&mut stream_a, &mut stream_b.0).await;
-                                        });
-                                        break 'inner;
-                                    }
-                                    None => {
-                                        tokio::task::yield_now().await;
-                                        continue 'inner;
+                            let addr_stack = addr_stack_ptr.clone();
+                            spawn(async move {
+                                'inner: loop {
+                                    let mut guard = addr_stack.lock().await;
+                                    let from_arr = guard.pop();
+                                    drop(guard);
+                                    match from_arr {
+                                        Some(mut stream_b) => {
+                                            stream_b.0.write_all(&buf).await.unwrap();
+                                            println!(
+                                                "starting copy_bidirectional {} <-> {}",
+                                                addr, stream_b.1
+                                            );
+                                            spawn(async move {
+                                                let _ = copy_bidirectional(&mut stream_a, &mut stream_b.0).await;
+                                            });
+                                            break 'inner;
+                                        }
+                                        None => {
+                                            tokio::task::yield_now().await;
+                                            continue 'inner;
+                                        }
                                     }
                                 }
-                            }
+                            });
                         } else {
                             println!("reality auth: FAILED, redirecting...");
                             let redirect_addr = redirect_addr.clone();
-                            start_redirect(redirect_addr, stream_a, &buf).await;
+                            spawn(
+                                async move {
+                                    start_redirect(redirect_addr, stream_a, &buf).await;
+                                }
+                            );
                         }
                     }
                 }
