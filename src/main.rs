@@ -1,4 +1,3 @@
-mod crypto;
 mod receiver;
 mod transmitter;
 
