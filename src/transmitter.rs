@@ -56,6 +56,7 @@ pub fn start_transmitter(
                 for stream in arr.drain(..) {
                     v.push(stream);
                 }
+                drop(arr);
                 let mut counter = 0;
                 for mut stream in v {
                     if let Ok(_) = stream.0.write_all(PING).await {
@@ -78,7 +79,6 @@ pub fn start_transmitter(
             Ok(listener) => {
                 println!("DOWNSTREAM addr:{:?}", downstream_addr);
                 loop {
-                    let mut from_arr = None;
                     if let Ok((mut stream_a, addr)) = listener.accept().await {
                         println!("accepted from downstream {}", addr);
 
@@ -93,7 +93,8 @@ pub fn start_transmitter(
                             println!("reality auth: OK");
                             'inner: loop {
                                 let mut guard = addr_stack.lock().await;
-                                from_arr = guard.pop();
+                                let from_arr = guard.pop();
+                                drop(guard);
                                 match from_arr {
                                     Some(mut stream_b) => {
                                         stream_b.0.write_all(&buf).await.unwrap();

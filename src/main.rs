@@ -31,6 +31,7 @@ const TRANSMITTER_UPSTREAM_SERVER: &str = "0.0.0.0";
 const TRANSMITTER_UPSTREAM_PORT: u16 = 8444;
 const TRANSMITTER_DOWNSTREAM_SERVER: &str = "0.0.0.0";
 const TRANSMITTER_DOWNSTREAM_PORT: u16 = 443;
+const TRANSMITTER_PRIV: &str = "uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE";
 const RECEIVER_UPSTREAM_SERVER: &str = "0.0.0.0";
 const RECEIVER_UPSTREAM_PORT: u16 = 8443;
 const RECEIVER_DOWNSTREAM_SERVER: &str = "0.0.0.0";
@@ -64,7 +65,7 @@ fn main() {
                     args.downstream_port.unwrap_or(TRANSMITTER_DOWNSTREAM_PORT)
                 ),
                 args.redirect_server.unwrap_or_default(),
-                args.server_priv.unwrap_or_default(),
+                args.server_priv.unwrap_or_else(|| TRANSMITTER_PRIV.to_string()),
             );
         }
         Mode::Receiver => {
