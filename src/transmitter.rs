@@ -1,8 +1,9 @@
 use crate::crypto::verify_reality_auth;
 use crate::{PING, PONG};
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc};
 use tokio::{io, spawn};
+use tokio::sync::Mutex;
 use tokio::io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::runtime::Builder;
@@ -30,9 +31,8 @@ pub fn start_transmitter(
                     loop {
                         if let Ok(stream) = listener.accept().await {
                             println!("accepted from upstream addr:{}", stream.1);
-                            if let Ok(mut arr) = addr_stack.lock() {
-                                arr.push(stream)
-                            }
+                            let mut arr = addr_stack.lock().await;
+                            arr.push(stream)
                         }
                     }
                 }
@@ -52,10 +52,9 @@ pub fn start_transmitter(
             loop {
                 sleep(Duration::from_secs(3)).await;
                 let mut v: Vec<(TcpStream, SocketAddr)> = Vec::new();
-                if let Ok(mut arr) = addr_stack.lock() {
-                    for stream in arr.drain(..) {
-                        v.push(stream);
-                    }
+                let mut arr = addr_stack.lock().await;
+                for stream in arr.drain(..) {
+                    v.push(stream);
                 }
                 let mut counter = 0;
                 for mut stream in v {
@@ -66,13 +65,12 @@ pub fn start_transmitter(
                                 println!("conn closed from upstream {}", stream.1);
                                 continue; // close stream
                             }
-                            Ok(_) => {}
-                            Err(_) => {}
+                            Ok(_) => {},
+                            Err(_) => { continue; } // close stream
                         }
-                        if let Ok(mut arr) = addr_stack.lock() {
-                            arr.push(stream);
-                            counter = counter + 1;
-                        }
+                        let mut arr = addr_stack.lock().await;
+                        arr.push(stream);
+                        counter = counter + 1;
                     }
                 }
             }
@@ -95,36 +93,33 @@ pub fn start_transmitter(
                                 continue;
                             }
                         };
-                        match verify_reality_auth(&buf, &server_priv_b64) {
-                            Ok(true)  => {
-                                println!("reality auth: OK");
-                                'inner: loop {
-                                    if let Ok(mut guard) = addr_stack.lock() {
-                                        from_arr = guard.pop();
+                        if let Ok(_) = verify_reality_auth(&buf, &server_priv_b64) {
+                            println!("reality auth: OK");
+                            'inner: loop {
+                                let mut guard = addr_stack.lock().await;
+                                from_arr = guard.pop();
+                                match from_arr {
+                                    Some(mut stream_b) => {
+                                        stream_b.0.write_all(&buf).await.unwrap();
+                                        println!(
+                                            "starting copy_bidirectional {} <-> {}",
+                                            addr, stream_b.1
+                                        );
+                                        spawn(async move {
+                                            let _ = copy_bidirectional(&mut stream_a, &mut stream_b.0).await;
+                                        });
+                                        break 'inner;
                                     }
-                                    match from_arr {
-                                        Some(mut stream_b) => {
-                                            stream_b.0.write_all(&buf).await.unwrap();
-                                            println!(
-                                                "starting copy_bidirectional {} <-> {}",
-                                                addr, stream_b.1
-                                            );
-                                            spawn(async move {
-                                                let _ = copy_bidirectional(&mut stream_a, &mut stream_b.0).await;
-                                            });
-                                            break 'inner;
-                                        }
-                                        None => {
-                                            continue 'inner;
-                                        }
+                                    None => {
+                                        tokio::task::yield_now().await;
+                                        continue 'inner;
                                     }
                                 }
-                            },
-                            Ok(false) | Err(_) => {
-                                println!("reality auth: FAILED, redirecting...");
-                                let redirect_addr = redirect_addr.clone();
-                                start_redirect(redirect_addr, stream_a, &buf).await;
                             }
+                        } else {
+                            println!("reality auth: FAILED, redirecting...");
+                            let redirect_addr = redirect_addr.clone();
+                            start_redirect(redirect_addr, stream_a, &buf).await;
                         }
                     }
                 }
