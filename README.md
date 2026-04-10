@@ -91,8 +91,8 @@ Run `transmitter`:
   --upstream-port 8554 \
   --downstream-server 0.0.0.0 \
   --downstream-port 443 \
-  --server-priv uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE \
-  --redirect-server strm-mar-190.strm.yandex.net:443
+  --server-priv ABCD123123EF \
+  --redirect-server example:443
 ```
 
 Run `receiver`:
@@ -102,7 +102,7 @@ Run `receiver`:
   --mode receiver \
   --upstream-server  host.docker.internal  \
   --upstream-port 8553 \
-  --downstream-server 194.87.236.129 \
+  --downstream-server 0.0.0.0 \
   --downstream-port 8554
 ```
 
@@ -124,8 +124,8 @@ docker run --rm \
   -e UPSTREAM_PORT=8444 \
   -e DOWNSTREAM_SERVER=0.0.0.0 \
   -e DOWNSTREAM_PORT=443 \
-  -e SERVER_PRIV=uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE \
-  -e REDIRECT_SERVER=strm-mar-190.strm.yandex.net:443 \
+  -e SERVER_PRIV=ABCD123123EF \
+  -e REDIRECT_SERVER=example:443 \
   -p 8444:8444 \
   -p 443:443 \
   rulay
