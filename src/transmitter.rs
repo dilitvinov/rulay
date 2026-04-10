@@ -74,25 +74,32 @@ pub fn start_transmitter(
         });
 
         // start listener for new clients, connect them to an upstream
-        let addr_stack = addr_stack_ptr.clone();
         match TcpListener::bind(&downstream_addr).await {
             Ok(listener) => {
                 println!("DOWNSTREAM addr:{:?}", downstream_addr);
                 loop {
                     if let Ok((mut stream_a, addr)) = listener.accept().await {
                         println!("accepted from downstream {}", addr);
-
-                        let buf = match read_tls_record(&mut stream_a).await {
-                            Ok(b) => b,
-                            Err(e) => {
-                                eprintln!("read_tls_record from {}: {}", addr, e);
-                                continue;
-                            }
-                        };
-                        if let Ok(true) = verify_reality_auth(&buf, &server_priv_b64) {
-                            println!("reality auth: OK");
-                            let addr_stack = addr_stack_ptr.clone();
-                            spawn(async move {
+                        let addr_stack = addr_stack_ptr.clone();
+                        let server_priv_b64 = server_priv_b64.clone();
+                        let redirect_addr = redirect_addr.clone();
+                        spawn(async move {
+                            let buf = match tokio::time::timeout(
+                                Duration::from_secs(5),
+                                read_tls_record(&mut stream_a),
+                            ).await {
+                                Ok(Ok(b)) => b,
+                                Ok(Err(e)) => {
+                                    eprintln!("read_tls_record from {}: {}", addr, e);
+                                    return;
+                                }
+                                Err(_) => {
+                                    eprintln!("read_tls_record from {}: timed out", addr);
+                                    return;
+                                }
+                            };
+                            if let Ok(true) = verify_reality_auth(&buf, &server_priv_b64) {
+                                println!("reality auth: OK");
                                 'inner: loop {
                                     let mut guard = addr_stack.lock().await;
                                     let from_arr = guard.pop();
@@ -115,16 +122,11 @@ pub fn start_transmitter(
                                         }
                                     }
                                 }
-                            });
-                        } else {
-                            println!("reality auth: FAILED, redirecting...");
-                            let redirect_addr = redirect_addr.clone();
-                            spawn(
-                                async move {
-                                    start_redirect(redirect_addr, stream_a, &buf).await;
-                                }
-                            );
-                        }
+                            } else {
+                                println!("reality auth: FAILED, redirecting...");
+                                start_redirect(redirect_addr, stream_a, &buf).await;
+                            }
+                        });
                     }
                 }
             }
