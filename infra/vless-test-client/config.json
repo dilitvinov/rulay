@@ -14,7 +14,7 @@
     {
       "type": "vless",
       "tag": "vless-out",
-      "server": "host.docker.internal",
+      "server": "194.87.236.129",
       "server_port": 443,
       "uuid": "eb8a761e-1a8a-4e80-a268-7d35614f21e6",
       "flow": "xtls-rprx-vision",
