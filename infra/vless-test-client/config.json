@@ -1,0 +1,37 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "inbounds": [
+    {
+      "type": "socks",
+      "tag": "socks-in",
+      "listen": "0.0.0.0",
+      "listen_port": 1080
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "vless",
+      "tag": "vless-out",
+      "server": "host.docker.internal",
+      "server_port": 443,
+      "uuid": "eb8a761e-1a8a-4e80-a268-7d35614f21e6",
+      "flow": "xtls-rprx-vision",
+      "tls": {
+        "enabled": true,
+        "server_name": "strm-mar-190.strm.yandex.net",
+        "utls": {
+          "enabled": true,
+          "fingerprint": "chrome"
+        },
+        "reality": {
+          "enabled": true,
+          "public_key": "2AFgZVRlKTp0kTQkS2IGjiN7hWchy22eUStQMWbtCxw",
+          "short_id": "584cd7313829f366"
+        }
+      },
+      "packet_encoding": "xudp"
+    }
+  ]
+}

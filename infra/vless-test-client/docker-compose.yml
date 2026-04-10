@@ -1,0 +1,8 @@
+services:
+  vless-client:
+    build: .
+    container_name: vless-test-client
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config.json:/etc/sing-box/config.json:ro
