@@ -21,7 +21,7 @@ If the output shows the VPS IP (not your local IP) — the proxy works.
 ## Interactive usage
 
 ```bash
-docker compose up -d --build
+docker-compose up -d --build
 docker exec -it vless-test-client sh
 ```
 
@@ -35,7 +35,7 @@ curl --proxy socks5h://127.0.0.1:1080 https://example.com
 Stop:
 
 ```bash
-docker compose down
+docker-compose down
 ```
 
 ## Configuration
@@ -44,5 +44,5 @@ Edit `config.json` to change the VLESS connection parameters (server, uuid, publ
 The config is mounted as a volume — no rebuild needed after changes, just restart:
 
 ```bash
-docker compose restart
+docker-compose restart
 ```

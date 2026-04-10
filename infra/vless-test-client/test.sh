@@ -4,7 +4,7 @@ set -eu
 cd "$(dirname "$0")"
 
 echo "Building and starting vless-test-client..."
-docker compose up -d --build
+docker-compose up -d --build
 
 echo ""
 echo "Running test request through VLESS proxy..."
@@ -14,4 +14,4 @@ docker exec vless-test-client \
 echo ""
 echo ""
 echo "Test passed. Stopping..."
-docker compose down
+docker-compose down
