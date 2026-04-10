@@ -89,7 +89,7 @@ pub fn start_transmitter(
                                 continue;
                             }
                         };
-                        if let Ok(_) = verify_reality_auth(&buf, &server_priv_b64) {
+                        if let Ok(true) = verify_reality_auth(&buf, &server_priv_b64) {
                             println!("reality auth: OK");
                             'inner: loop {
                                 let mut guard = addr_stack.lock().await;
