@@ -60,13 +60,9 @@ pub fn start_transmitter(
                 for mut stream in v {
                     if let Ok(_) = stream.0.write_all(PING).await {
                         let mut buf: [u8; 4] = [0; 4];
-                        match stream.0.read(&mut buf).await {
-                            Ok(_) if buf != PONG => {
-                                println!("conn closed from upstream {}", stream.1);
-                                continue; // close stream
-                            }
-                            Ok(_) => {},
-                            Err(_) => { continue; } // close stream
+                        if let Ok(_) = stream.0.read_exact(&mut buf).await && buf == PONG {} else {
+                            println!("conn closed from upstream {}", stream.1);
+                            continue; // close stream
                         }
                         let mut arr = addr_stack.lock().await;
                         arr.push(stream);
