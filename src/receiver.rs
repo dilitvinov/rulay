@@ -33,8 +33,8 @@ pub fn start_receiver(upstream_addr: String, downstream_addr: String) {
                                     let _ = stream.write_all(PONG).await;
                                     continue;
                                 }
+                                drop(permit);
                                 if buf != [0; 4] {
-                                    drop(permit);
                                     start_new_upstream(stream, buf, &upstream_addr).await;
                                 }
                                 println!("connection to downstream is closed");

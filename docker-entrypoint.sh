@@ -29,4 +29,12 @@ if [ -n "${DOWNSTREAM_PORT:-}" ]; then
     set -- "$@" --downstream-port "$DOWNSTREAM_PORT"
 fi
 
+if [ -n "${SERVER_PRIV:-}" ]; then
+    set -- "$@" --server-priv "$SERVER_PRIV"
+fi
+
+if [ -n "${REDIRECT_SERVER:-}" ]; then
+    set -- "$@" --redirect-server "$REDIRECT_SERVER"
+fi
+
 exec /usr/local/bin/rulay "$@"
