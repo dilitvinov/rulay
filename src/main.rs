@@ -47,11 +47,13 @@ enum Mode {
 }
 
 fn main() {
+    println!("starting console subscriber on 0.0.0.0:6669");
     let console_layer = console_subscriber::ConsoleLayer::builder()
         .server_addr(([0, 0, 0, 0], 6669))
         .spawn();
     use tracing_subscriber::prelude::*;
     tracing_subscriber::registry().with(console_layer).init();
+    println!("console subscriber started");
 
     let args = Args::parse();
     match args.mode {
