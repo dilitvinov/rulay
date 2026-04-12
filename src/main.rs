@@ -60,11 +60,6 @@ fn main() {
             .build()
             .expect("console runtime failed");
         rt.block_on(async move {
-            // test: can we bind 6669 at all?
-            match tokio::net::TcpListener::bind("0.0.0.0:6669").await {
-                Ok(l) => eprintln!("test bind OK on {:?}", l.local_addr()),
-                Err(e) => eprintln!("test bind FAILED: {}", e),
-            }
             eprintln!("console gRPC server starting...");
             if let Err(e) = server.serve().await {
                 eprintln!("console server error: {}", e);
