@@ -10,5 +10,6 @@ clap = { version = "4.6.0", features = ["derive"] }
 hkdf = "0.12"
 sha2 = "0.10"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
-tokio = { version = "1.50.0", features = ["full"] }
+tokio = { version = "1.50.0", features = ["full", "tracing"] }
 tun = "0.8.6"
+console-subscriber = "0.4"

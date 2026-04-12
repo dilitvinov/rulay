@@ -1,11 +1,10 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::spawn;
 use tokio::sync::Mutex;
 
 pub fn start_upstream_listener(upstream_addr: String, addr_stack: Arc<Mutex<Vec<(TcpStream, SocketAddr)>>>) {
-    spawn(async move {
+    let _ = tokio::task::Builder::new().name("upstream-listener").spawn(async move {
         match TcpListener::bind(&upstream_addr).await {
             Ok(listener) => {
                 println!("UPSTREAM addr:{:?}", upstream_addr);

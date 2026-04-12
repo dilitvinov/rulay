@@ -13,4 +13,6 @@ ENV UPSTREAM_PORT=""
 ENV DOWNSTREAM_SERVER=""
 ENV DOWNSTREAM_PORT=""
 
+EXPOSE 6669
+
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

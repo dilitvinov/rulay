@@ -3,13 +3,12 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::spawn;
 use tokio::sync::Mutex;
 use tokio::time::sleep;
 use crate::{PING, PONG};
 
 pub fn start_pinging(addr_stack: Arc<Mutex<Vec<(TcpStream, SocketAddr)>>>) {
-    spawn(async move {
+    let _ = tokio::task::Builder::new().name("ping-loop").spawn(async move {
         loop {
             sleep(Duration::from_secs(3)).await;
             let mut v: Vec<(TcpStream, SocketAddr)> = Vec::new();

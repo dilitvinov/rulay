@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::{io, spawn};
+use tokio::io;
 use tokio::sync::Mutex;
 use crate::transmitter::crypto::verify_reality_auth;
 
@@ -21,7 +21,7 @@ pub async fn start_listener_for_downstream(
                     let addr_stack = addr_stack_ptr.clone();
                     let server_priv_b64 = server_priv_b64.clone();
                     let redirect_addr = redirect_addr.clone();
-                    spawn(async move { // nowait + redirect
+                    let _ = tokio::task::Builder::new().name("downstream-client").spawn(async move { // nowait + redirect
                         let buf = match read_tls_record(&mut stream_a).await {
                             Ok(b) => b,
                             Err(e) => {
@@ -42,7 +42,7 @@ pub async fn start_listener_for_downstream(
                                             "starting copy_bidirectional {} <-> {}",
                                             addr, stream_b.1
                                         );
-                                        spawn(async move { // todo remove?
+                                        let _ = tokio::task::Builder::new().name("copy-bidir-client").spawn(async move {
                                             let _ = copy_bidirectional(&mut stream_a, &mut stream_b.0).await;
                                         });
                                         break 'inner;
@@ -88,7 +88,7 @@ async fn start_redirect(redirect_addr: String, mut to_user: TcpStream, read_buff
         Ok::<TcpStream, io::Error>(to_server)
     }.await;
     if let Ok(mut to_server) = result {
-        spawn(async move {
+        let _ = tokio::task::Builder::new().name("copy-bidir-redirect").spawn(async move {
             let _ = copy_bidirectional(&mut to_user, &mut to_server).await;
         });
         return;

@@ -47,6 +47,7 @@ enum Mode {
 }
 
 fn main() {
+    console_subscriber::init();
     let args = Args::parse();
     match args.mode {
         Mode::Transmitter => {

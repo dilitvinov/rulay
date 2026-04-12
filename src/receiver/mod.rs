@@ -21,11 +21,11 @@ pub fn start_receiver(upstream_addr: String, downstream_addr: String) {
                 downstream_addr,
                 SEM.available_permits()
             );
-            tokio::spawn(async move {
+            let _ = tokio::task::Builder::new().name("receiver-connect").spawn(async move {
                 match TcpStream::connect(&downstream_addr).await {
                     Ok(mut stream) => {
                         // ping pong
-                        tokio::spawn(async move {
+                        let _ = tokio::task::Builder::new().name("receiver-ping-loop").spawn(async move {
                             loop {
                                 let mut buf: [u8; 4] = [0; 4];
                                 let _ = stream.read_exact(&mut buf).await;

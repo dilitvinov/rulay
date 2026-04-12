@@ -4,10 +4,9 @@ mod downstream;
 mod upstream;
 
 use std::net::SocketAddr;
-use std::sync::{Arc};
+use std::sync::Arc;
 use tokio::sync::Mutex;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{TcpStream};
+use tokio::net::TcpStream;
 use tokio::runtime::Builder;
 use crate::transmitter::downstream::start_listener_for_downstream;
 use crate::transmitter::ping::start_pinging;
