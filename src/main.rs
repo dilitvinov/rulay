@@ -48,11 +48,24 @@ enum Mode {
 
 fn main() {
     println!("starting console subscriber on 0.0.0.0:6669");
-    let console_layer = console_subscriber::ConsoleLayer::builder()
+    let (console_layer, server) = console_subscriber::ConsoleLayer::builder()
         .server_addr(([0, 0, 0, 0], 6669))
-        .spawn();
+        .build();
     use tracing_subscriber::prelude::*;
+    use tracing_subscriber::layer::SubscriberExt;
     tracing_subscriber::registry().with(console_layer).init();
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("console runtime failed");
+        rt.block_on(async move {
+            eprintln!("console gRPC server starting...");
+            if let Err(e) = server.serve().await {
+                eprintln!("console server error: {}", e);
+            }
+        });
+    });
     println!("console subscriber started");
 
     let args = Args::parse();
