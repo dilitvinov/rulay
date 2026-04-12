@@ -47,7 +47,12 @@ enum Mode {
 }
 
 fn main() {
-    console_subscriber::init();
+    let console_layer = console_subscriber::ConsoleLayer::builder()
+        .server_addr(([0, 0, 0, 0], 6669))
+        .spawn();
+    use tracing_subscriber::prelude::*;
+    tracing_subscriber::registry().with(console_layer).init();
+
     let args = Args::parse();
     match args.mode {
         Mode::Transmitter => {
