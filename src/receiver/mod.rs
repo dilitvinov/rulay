@@ -43,8 +43,9 @@ pub fn start_receiver(upstream_addr: String, downstream_addr: String) {
                         });
                     }
                     Err(e) => {
+                        drop(permit);
                         eprintln!("Connection downstream {} err: {}", downstream_addr, e);
-                        tokio::time::sleep(Duration::from_secs(1)).await;
+                        tokio::time::sleep(Duration::from_millis(20)).await;
                     }
                 }
             });

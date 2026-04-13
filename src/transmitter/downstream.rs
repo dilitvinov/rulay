@@ -92,6 +92,8 @@ async fn start_redirect(redirect_addr: String, to_user: TcpStream, read_buffer :
     }.await;
     if let Ok(to_server) = result {
         let _ = tokio::task::Builder::new().name("copy-bidir-redirect").spawn(async move {
+
+            // TODO into function
             let mut with_timeout_tu = TimeoutStream::new(to_user);
             with_timeout_tu.set_read_timeout(Some(Duration::from_secs(30)));
             with_timeout_tu.set_write_timeout(Some(Duration::from_secs(30)));
