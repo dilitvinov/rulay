@@ -47,7 +47,6 @@ enum Mode {
 }
 
 fn main() {
-    println!("starting console subscriber on 0.0.0.0:6669");
     let (console_layer, server) = console_subscriber::ConsoleLayer::builder()
         .server_addr(([0, 0, 0, 0], 6669))
         .build();
@@ -60,14 +59,11 @@ fn main() {
             .build()
             .expect("console runtime failed");
         rt.block_on(async move {
-            eprintln!("console gRPC server starting...");
             if let Err(e) = server.serve().await {
                 eprintln!("console server error: {}", e);
             }
-            eprintln!("console gRPC server exited");
         });
     });
-    println!("console subscriber started");
 
     let args = Args::parse();
     match args.mode {
