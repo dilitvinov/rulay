@@ -72,7 +72,7 @@ pub async fn start_listener_for_downstream(
 
 async fn read_tls_record(stream: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
     let mut header = [0u8; 5];
-    let n = stream.read(&mut header).await?;
+    let n = tokio::time::timeout(Duration::from_secs(10), stream.read(&mut header)).await??;
     if n != header.len() {
         // empty request, probably http instead of https
         return Ok(Vec::new());
