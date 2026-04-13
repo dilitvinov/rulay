@@ -4,7 +4,10 @@ use tokio::io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io;
 use tokio::sync::Mutex;
+use tokio_io_timeout::TimeoutStream;
 use crate::transmitter::crypto::verify_reality_auth;
+use std::time::Duration;
+
 
 pub async fn start_listener_for_downstream(
     downstream_addr: String,
@@ -81,15 +84,25 @@ async fn read_tls_record(stream: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
     stream.read(&mut buf[5..]).await?;
     Ok(buf)
 }
-async fn start_redirect(redirect_addr: String, mut to_user: TcpStream, read_buffer : &[u8]) {
+async fn start_redirect(redirect_addr: String, to_user: TcpStream, read_buffer : &[u8]) {
     let result = async {
         let mut to_server = TcpStream::connect(redirect_addr).await?;
         to_server.write_all(read_buffer).await?;
         Ok::<TcpStream, io::Error>(to_server)
     }.await;
-    if let Ok(mut to_server) = result {
+    if let Ok(to_server) = result {
         let _ = tokio::task::Builder::new().name("copy-bidir-redirect").spawn(async move {
-            let _ = copy_bidirectional(&mut to_user, &mut to_server).await;
+            let mut with_timeout_tu = TimeoutStream::new(to_user);
+            with_timeout_tu.set_read_timeout(Some(Duration::from_secs(30)));
+            with_timeout_tu.set_write_timeout(Some(Duration::from_secs(30)));
+            let mut a = Box::pin(with_timeout_tu);
+
+            let mut with_timeout_ts = TimeoutStream::new(to_server);
+            with_timeout_ts.set_read_timeout(Some(Duration::from_secs(30)));
+            with_timeout_ts.set_write_timeout(Some(Duration::from_secs(30)));
+            let mut b = Box::pin(with_timeout_ts);
+
+            let _ = copy_bidirectional(&mut a, &mut b).await;
         });
         return;
     }
