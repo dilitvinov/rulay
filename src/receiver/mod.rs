@@ -6,7 +6,7 @@ use tokio::runtime::Builder;
 use tokio::sync::Semaphore;
 use crate::utils::copy_bidirectional_with_timeout;
 
-const CONN_NUM: usize = 10;
+const CONN_NUM: usize = 50;
 static SEM: Semaphore = Semaphore::const_new(CONN_NUM);
 
 pub fn start_receiver(upstream_addr: String, downstream_addr: String) {
