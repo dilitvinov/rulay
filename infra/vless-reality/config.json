@@ -32,8 +32,8 @@
   },
   "inbounds": [
     {
-      "listen": "194.87.236.129",
-      "port": 443,
+      "listen": "0.0.0.0",
+      "port": 8553,
       "protocol": "vless",
       "settings": {
         "clients": [
