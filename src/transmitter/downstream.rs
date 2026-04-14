@@ -80,7 +80,7 @@ async fn read_tls_record(stream: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
     let mut buf = Vec::with_capacity(5 + body_len);
     buf.extend_from_slice(&header);
     buf.resize(5 + body_len, 0); // todo why?
-    let _ = tokio::time::timeout(Duration::from_secs(10), stream.read(&mut buf[5..])).await??;
+    tokio::time::timeout(Duration::from_secs(10), stream.read_exact(&mut buf[5..])).await??;
     Ok(buf)
 }
 async fn start_redirect(redirect_addr: String, mut to_user: TcpStream, read_buffer : &[u8]) {
