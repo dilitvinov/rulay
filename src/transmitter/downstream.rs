@@ -1,13 +1,12 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::io::{copy_bidirectional, AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io;
 use tokio::sync::Mutex;
-use tokio_io_timeout::TimeoutStream;
 use crate::transmitter::crypto::verify_reality_auth;
 use std::time::Duration;
-
+use crate::utils::copy_bidirectional_with_timeout;
 
 pub async fn start_listener_for_downstream(
     downstream_addr: String,
@@ -46,7 +45,7 @@ pub async fn start_listener_for_downstream(
                                             addr, stream_b.1
                                         );
                                         let _ = tokio::task::Builder::new().name("copy-bidir-client").spawn(async move {
-                                            let _ = copy_bidirectional(&mut stream_a, &mut stream_b.0).await;
+                                            let _ = copy_bidirectional_with_timeout(&mut stream_a, &mut stream_b.0).await;
                                         });
                                         break 'inner;
                                     }
@@ -81,30 +80,18 @@ async fn read_tls_record(stream: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
     let mut buf = Vec::with_capacity(5 + body_len);
     buf.extend_from_slice(&header);
     buf.resize(5 + body_len, 0); // todo why?
-    stream.read(&mut buf[5..]).await?;
+    let _ = tokio::time::timeout(Duration::from_secs(10), stream.read(&mut buf[5..])).await??;
     Ok(buf)
 }
-async fn start_redirect(redirect_addr: String, to_user: TcpStream, read_buffer : &[u8]) {
+async fn start_redirect(redirect_addr: String, mut to_user: TcpStream, read_buffer : &[u8]) {
     let result = async {
         let mut to_server = TcpStream::connect(redirect_addr).await?;
         to_server.write_all(read_buffer).await?;
         Ok::<TcpStream, io::Error>(to_server)
     }.await;
-    if let Ok(to_server) = result {
+    if let  Ok(mut to_server) = result {
         let _ = tokio::task::Builder::new().name("copy-bidir-redirect").spawn(async move {
-
-            // TODO into function
-            let mut with_timeout_tu = TimeoutStream::new(to_user);
-            with_timeout_tu.set_read_timeout(Some(Duration::from_secs(30)));
-            with_timeout_tu.set_write_timeout(Some(Duration::from_secs(30)));
-            let mut a = Box::pin(with_timeout_tu);
-
-            let mut with_timeout_ts = TimeoutStream::new(to_server);
-            with_timeout_ts.set_read_timeout(Some(Duration::from_secs(30)));
-            with_timeout_ts.set_write_timeout(Some(Duration::from_secs(30)));
-            let mut b = Box::pin(with_timeout_ts);
-
-            let _ = copy_bidirectional(&mut a, &mut b).await;
+            let _ = copy_bidirectional_with_timeout(&mut to_server, &mut to_user).await;
         });
         return;
     }

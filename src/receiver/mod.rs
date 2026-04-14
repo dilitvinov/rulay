@@ -1,9 +1,10 @@
 use crate::{PING, PONG};
 use std::time::Duration;
-use tokio::io::{AsyncReadExt, AsyncWriteExt, copy_bidirectional};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::runtime::Builder;
 use tokio::sync::Semaphore;
+use crate::utils::copy_bidirectional_with_timeout;
 
 const CONN_NUM: usize = 10;
 static SEM: Semaphore = Semaphore::const_new(CONN_NUM);
@@ -60,7 +61,7 @@ async fn start_new_upstream(mut downstream: TcpStream, buf: [u8; 4], upstream_ad
         Ok(mut upstream) => {
             println!("Connected to {}\nStart copy_bidirectional", upstream_addr);
             let _ = upstream.write(&buf).await;
-            let _ = copy_bidirectional(&mut upstream, &mut downstream).await;
+            let _ = copy_bidirectional_with_timeout(&mut upstream, &mut downstream).await;
             println!("copy_bidirectional is closing");
         }
         Err(e) => {
