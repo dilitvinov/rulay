@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_io_timeout::TimeoutStream;
 
-const IO_TIMEOUT : u64 = 30;
+const IO_TIMEOUT : u64 = 300;
 pub async fn copy_bidirectional_with_timeout<A, B>(a: &mut A, b: &mut B) -> io::Result<(u64, u64)>
 where
     A: AsyncRead + AsyncWrite + Unpin + ?Sized,
