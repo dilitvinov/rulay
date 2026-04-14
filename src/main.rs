@@ -48,24 +48,6 @@ enum Mode {
 }
 
 fn main() {
-    let (console_layer, server) = console_subscriber::ConsoleLayer::builder()
-        .server_addr(([0, 0, 0, 0], 6669))
-        .build();
-    use tracing_subscriber::prelude::*;
-    use tracing_subscriber::layer::SubscriberExt;
-    tracing_subscriber::registry().with(console_layer).init();
-    std::thread::spawn(move || {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("console runtime failed");
-        rt.block_on(async move {
-            if let Err(e) = server.serve().await {
-                eprintln!("console server error: {}", e);
-            }
-        });
-    });
-
     let args = Args::parse();
     match args.mode {
         Mode::Transmitter => {
