@@ -137,7 +137,9 @@ set -- docker run -d \
     -e DOWNSTREAM_SERVER="$DOWNSTREAM_SERVER" \
     -e DOWNSTREAM_PORT="$DOWNSTREAM_PORT" \
     -e SERVER_PRIV="$SERVER_PRIV" \
-    -e REDIRECT_SERVER="$REDIRECT_SERVER"
+    -e REDIRECT_SERVER="$REDIRECT_SERVER" \
+    -e TOKIO_CONSOLE_BIND="0.0.0.0:6669" \
+    -p 6669:6669
 
 if [ "$MODE" = "transmitter" ]; then
     set -- "$@" \
@@ -167,6 +169,7 @@ fi
 if [ -n "$REDIRECT_SERVER" ]; then
     echo "  redirect_server=$REDIRECT_SERVER"
 fi
+echo "  tokio_console=6669"
 if [ "$MODE" = "transmitter" ]; then
-    echo "  published_ports=$UPSTREAM_PORT,$DOWNSTREAM_PORT"
+    echo "  published_ports=$UPSTREAM_PORT,$DOWNSTREAM_PORT,6669"
 fi

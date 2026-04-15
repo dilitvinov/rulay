@@ -114,6 +114,42 @@ Additional options:
 
 `install.sh` publishes both configured ports from the container to the host using the same port numbers.
 
+## Tokio Console (profiling)
+
+The binary includes [tokio-console](https://github.com/tokio-rs/console) instrumentation. The console gRPC server listens on port `6669` inside the container (`install.sh` publishes it automatically).
+
+Install the CLI:
+
+```bash
+cargo install tokio-console
+```
+
+Connect to a remote server via SSH tunnel:
+
+```bash
+ssh -L 6669:localhost:6669 root@<server-ip>
+```
+
+Then in another terminal:
+
+```bash
+tokio-console
+```
+
+This opens an interactive TUI showing all named async tasks, their poll times, waker counts, etc.
+
+Named tasks:
+
+| Name | Location |
+|---|---|
+| `upstream-listener` | accepts receiver connections |
+| `ping-loop` | pings receiver connections in the pool |
+| `downstream-client` | handles an incoming client |
+| `copy-bidir-client` | bidirectional copy client <-> receiver |
+| `copy-bidir-redirect` | bidirectional copy for redirected (non-REALITY) clients |
+| `receiver-connect` | establishes connection to transmitter |
+| `receiver-ping-loop` | responds to pings / waits for data |
+
 ## Direct docker run
 
 ```bash
