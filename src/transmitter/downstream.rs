@@ -45,7 +45,7 @@ pub async fn start_listener_for_downstream(
                                             addr, stream_b.1
                                         );
                                         let _ = tokio::task::Builder::new().name("copy-bidir-client").spawn(async move {
-                                            let _ = copy_bidirectional_with_timeout(&mut stream_a, &mut stream_b.0).await;
+                                            let _ = copy_bidirectional_with_timeout(stream_a, stream_b.0).await;
                                         });
                                         break 'inner;
                                     }
@@ -83,15 +83,15 @@ async fn read_tls_record(stream: &mut TcpStream) -> Result<Vec<u8>, io::Error> {
     tokio::time::timeout(Duration::from_secs(10), stream.read_exact(&mut buf[5..])).await??;
     Ok(buf)
 }
-async fn start_redirect(redirect_addr: String, mut to_user: TcpStream, read_buffer : &[u8]) {
+async fn start_redirect(redirect_addr: String, to_user: TcpStream, read_buffer : &[u8]) {
     let result = async {
         let mut to_server = TcpStream::connect(redirect_addr).await?;
         to_server.write_all(read_buffer).await?;
         Ok::<TcpStream, io::Error>(to_server)
     }.await;
-    if let  Ok(mut to_server) = result {
+    if let  Ok(to_server) = result {
         let _ = tokio::task::Builder::new().name("copy-bidir-redirect").spawn(async move {
-            let _ = copy_bidirectional_with_timeout(&mut to_server, &mut to_user).await;
+            let _ = copy_bidirectional_with_timeout(to_server, to_user).await;
         });
         return;
     }

@@ -53,6 +53,37 @@ cargo run -- \
   --downstream-port 8444
 ```
 
+## Running tests
+
+Tests for zero-copy plumbing (`src/utils/zerocopy_async.rs`) are Linux-only — they use `splice` / `epoll`, which are unavailable on macOS.
+
+### On Linux
+
+```bash
+cargo test
+```
+
+Run a single test:
+
+```bash
+cargo test test_register_socket_pair -- --nocapture
+```
+
+### On macOS (via Lima)
+
+Use the same Lima VM configured in "Remote debug" below:
+
+```bash
+limactl start default          # first time only
+lima cargo test                # runs tests inside the VM against the repo
+```
+
+Use a dedicated target dir to avoid artefact collisions with the macOS build:
+
+```bash
+lima env CARGO_TARGET_DIR=target/lima cargo test
+```
+
 ## Cross-compilation (macOS → Linux x86_64)
 
 The Docker image targets `linux/amd64`. To build the binary on macOS without Docker:
@@ -150,6 +181,101 @@ Named tasks:
 | `receiver-connect` | establishes connection to transmitter |
 | `receiver-ping-loop` | responds to pings / waits for data |
 
+## Remote debug (macOS → Linux over Lima)
+
+Linux-specific code (`splice`, `epoll`, etc.) cannot be tested or debugged natively on macOS. This section sets up a reproducible remote-debug flow: tests run under `gdbserver` inside a Lima VM, RustRover attaches via a direct SSH tunnel.
+
+On an Apple Silicon host Lima defaults to `aarch64` guests. For an `x86_64` guest, create a separate Lima instance with `limactl create --arch x86_64 --name linux-x64 template://default` and substitute `default` with `linux-x64` in the commands below.
+
+### One-time setup
+
+**1. Install tooling on the host:**
+
+```bash
+brew install lima jq
+```
+
+**2. Start the Lima VM:**
+
+```bash
+limactl start default
+```
+
+**3. Install `gdbserver` inside the VM:**
+
+```bash
+lima sudo apt-get update && lima sudo apt-get install -y gdbserver
+```
+
+**4. Do NOT use `portForwards` in `~/.lima/default/lima.yaml` for the debug port.** Lima's built-in forwarder mangles the gdb-remote binary protocol (inserts `timeout` markers into the stream, which GDB rejects as `Remote replied unexpectedly to 'vMustReplyEmpty': timeout`). Use a plain SSH tunnel instead (see step 6 of the per-session flow).
+
+**5. Create a RustRover run configuration** (requires RustRover 2025.2+).
+
+Run → Edit Configurations → `+` → **Remote Debug**:
+
+| Field | Value |
+|---|---|
+| Name | `rulay-remote` |
+| Debugger | `Bundled LLDB` (e.g. `LLDB 19`) — connects to `gdbserver` via the gdb-remote protocol. `Bundled GDB` is not always exposed in the dropdown on macOS; if needed, use `Custom GDB` pointing to `/Applications/RustRover.app/Contents/bin/gdb/mac/aarch64/bin/gdb`. |
+| `'target remote' args` | `localhost:1234` |
+| Symbol file | *(filled in per session — see step 4 below)* |
+| Sysroot | *(leave empty; set to `target:` only if the debugger complains about libc symbols)* |
+
+### Per-session flow
+
+**1. Start the SSH tunnel** on the host (survives rebuilds; only needs to be restarted if the VM restarts):
+
+```bash
+ssh -F ~/.lima/default/ssh.config -fN -L 1234:localhost:1234 lima-default
+```
+
+Verify it is listening:
+
+```bash
+lsof -iTCP:1234 -sTCP:LISTEN
+```
+
+**2. Enter the VM shell:**
+
+```bash
+lima
+```
+
+**3. Build the test binary and launch `gdbserver`** using the helper script in the repo root:
+
+```bash
+./debug-test-linux.sh <test_name> [port]
+```
+
+Example:
+
+```bash
+./debug-test-linux.sh register_socket_pair
+```
+
+The script compiles tests into `target/lima/` (kept separate from the macOS target dir to avoid artefact collisions), prints the binary path, and execs `gdbserver 0.0.0.0:<port>`. Expected output:
+
+```
+binary: /Users/dmitrii/rust/rulay/target/lima/debug/deps/rulay-<hash>
+listening: 0.0.0.0:1234
+Process ... created; pid = ...
+Listening on port 1234
+```
+
+**4. Copy the printed `binary:` path** into the **Symbol file** field of the `rulay-remote` configuration in RustRover. The hash in the file name changes whenever the test crate is rebuilt, so this field needs updating after meaningful source changes.
+
+**5. Set breakpoints** in `src/utils/zerocopy_async.rs` (or elsewhere) and press **Debug** on the `rulay-remote` configuration. RustRover connects to the SSH-tunnelled `localhost:1234`, loads symbols, and stops at the first breakpoint.
+
+**6. Stop the session** by pressing `Ctrl+C` in the Lima shell where `gdbserver` is running. The test binary exits; the SSH tunnel stays up for the next iteration.
+
+### Troubleshooting
+
+- **`Cannot run debugger`** — RustRover version older than 2025.2 (the Remote Debug template did not exist before that). Update via Toolbox.
+- **`Remote replied unexpectedly to 'vMustReplyEmpty': timeout`** — traffic is going through Lima's `portForwards` or another proxy. Verify the listener on port 1234 is `ssh`, not `limactl`: `lsof -iTCP:1234 -sTCP:LISTEN`.
+- **`Bundled GDB` missing from the Debugger dropdown** — known RustRover quirk on macOS. Use `Bundled LLDB` (it speaks gdb-remote) or `Custom GDB` pointing to `/Applications/RustRover.app/Contents/bin/gdb/mac/aarch64/bin/gdb`.
+- **Architecture mismatch** — check that the Lima VM arch matches what `cargo` is building. `uname -m` inside the VM and `file target/lima/debug/deps/rulay-*` on the host must agree.
+- **Unresolved breakpoints** — usually a stale `Symbol file` path after a rebuild. Re-run the helper script and update the config.
+
 ## Direct docker run
 
 ```bash
@@ -166,3 +292,10 @@ docker run --rm \
   -p 443:443 \
   rulay
 ```
+
+окей, у нас есть функция bidirectional_splice(), которая           
+блокируется на epoll_wait(). хочу epoll_wait вытащить в отдельный  
+тред, чтобы обслуживать epoll, и каким то образом уведомлять       
+остальные подписавшиеся bidirectional_splice() о том, что пришло   
+обновление и нужно запустить splice(). давай составим план, как    
+это можно сделать и положим в task.md  

@@ -56,12 +56,12 @@ pub fn start_receiver(upstream_addr: String, downstream_addr: String) {
     });
 }
 
-async fn start_new_upstream(mut downstream: TcpStream, buf: [u8; 4], upstream_addr: &str) {
+async fn start_new_upstream(downstream: TcpStream, buf: [u8; 4], upstream_addr: &str) {
     match TcpStream::connect(upstream_addr).await {
         Ok(mut upstream) => {
             println!("Connected to {}\nStart copy_bidirectional", upstream_addr);
             let _ = upstream.write(&buf).await;
-            let _ = copy_bidirectional_with_timeout(&mut upstream, &mut downstream).await;
+            let _ = copy_bidirectional_with_timeout(upstream, downstream).await;
             println!("copy_bidirectional is closing");
         }
         Err(e) => {

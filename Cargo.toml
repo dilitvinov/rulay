@@ -12,3 +12,13 @@ sha2 = "0.10"
 x25519-dalek = { version = "2", features = ["static_secrets"] }
 tokio = { version = "1.50.0", features = ["full", "tracing"] }
 tokio-io-timeout = "1.2.1"
+socket2 = "0.6.3"
+[target.'cfg(target_os = "linux")'.dependencies]
+tokio-splice = "0.2.1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["async_tokio"] }
+
+[[bench]]
+name = "copy_bidirectional"
+harness = false
