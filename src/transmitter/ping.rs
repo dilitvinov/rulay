@@ -3,33 +3,45 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
-use tokio::sync::Mutex;
-use tokio::time::sleep;
+use tokio::task::JoinSet;
+use tokio::time::{sleep, timeout};
+use crate::transmitter::pool::StreamPool;
 use crate::{PING, PONG};
 
-pub fn start_pinging(addr_stack: Arc<Mutex<Vec<(TcpStream, SocketAddr)>>>) {
+const PONG_TIMEOUT: Duration = Duration::from_secs(5);
+
+pub fn start_pinging(pool: Arc<StreamPool>) {
     let _ = tokio::task::Builder::new().name("ping-loop").spawn(async move {
         loop {
             sleep(Duration::from_secs(3)).await;
-            let mut v: Vec<(TcpStream, SocketAddr)> = Vec::new();
-            let mut arr = addr_stack.lock().await;
-            for stream in arr.drain(..) {
-                v.push(stream);
-            }
-            drop(arr);
-            let mut counter = 0;
-            for mut stream in v {
-                if let Ok(_) = stream.0.write_all(PING).await {
-                    let mut buf: [u8; 4] = [0; 4];
-                    if let Ok(_) = stream.0.read_exact(&mut buf).await && buf == PONG {} else {
-                        println!("conn closed from upstream {}", stream.1);
-                        continue; // close stream
+            // ping every stream in parallel: a single unresponsive peer must not
+            // hold the whole pool hostage
+            let mut checks = JoinSet::new();
+            for stream in pool.drain().await {
+                let pool = pool.clone();
+                checks.spawn(async move {
+                    if let Some(stream) = ping_once(stream).await {
+                        pool.push(stream).await;
                     }
-                    let mut arr = addr_stack.lock().await;
-                    arr.push(stream);
-                    counter = counter + 1;
-                }
+                });
             }
+            checks.join_all().await;
         }
     });
+}
+
+/// Returns the stream back if it answered PONG in time, otherwise drops (closes) it.
+async fn ping_once(mut stream: (TcpStream, SocketAddr)) -> Option<(TcpStream, SocketAddr)> {
+    let mut buf: [u8; 4] = [0; 4];
+    let exchange = async {
+        stream.0.write_all(PING).await?;
+        stream.0.read_exact(&mut buf).await
+    };
+    match timeout(PONG_TIMEOUT, exchange).await {
+        Ok(Ok(_)) if buf == PONG => Some(stream),
+        _ => {
+            println!("conn closed from upstream {}", stream.1);
+            None
+        }
+    }
 }

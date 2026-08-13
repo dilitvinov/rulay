@@ -1,18 +1,21 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io;
-use tokio::sync::Mutex;
+use tokio::time::Instant;
 use crate::transmitter::crypto::verify_reality_auth;
+use crate::transmitter::pool::StreamPool;
 use std::time::Duration;
 use crate::utils::copy_bidirectional_with_timeout;
+
+/// How long an authenticated client waits for a free upstream before being dropped.
+const UPSTREAM_WAIT: Duration = Duration::from_secs(30);
 
 pub async fn start_listener_for_downstream(
     downstream_addr: String,
     redirect_addr: String,
     server_priv_b64: String,
-    addr_stack_ptr: Arc<Mutex<Vec<(TcpStream, SocketAddr)>>>
+    pool_ptr: Arc<StreamPool>
 ) {
     match TcpListener::bind(&downstream_addr).await {
         Ok(listener) => {
@@ -20,7 +23,7 @@ pub async fn start_listener_for_downstream(
             loop {
                 if let Ok((mut stream_a, addr)) = listener.accept().await {
                     println!("accepted from downstream {}", addr);
-                    let addr_stack = addr_stack_ptr.clone();
+                    let pool = pool_ptr.clone();
                     let server_priv_b64 = server_priv_b64.clone();
                     let redirect_addr = redirect_addr.clone();
                     let _ = tokio::task::Builder::new().name("downstream-client").spawn(async move { // nowait + redirect
@@ -33,13 +36,16 @@ pub async fn start_listener_for_downstream(
                         };
                         if let Ok(true) = verify_reality_auth(&buf, &server_priv_b64) {
                             println!("reality auth: OK");
+                            let deadline = Instant::now() + UPSTREAM_WAIT;
                             'inner: loop {
-                                let mut guard = addr_stack.lock().await;
-                                let from_arr = guard.pop();
-                                drop(guard);
-                                match from_arr {
+                                let wait = deadline.saturating_duration_since(Instant::now());
+                                match pool.pop_wait(wait).await {
                                     Some(mut stream_b) => {
-                                        stream_b.0.write_all(&buf).await.unwrap();
+                                        // a pooled stream may have died while idle: try the next one
+                                        if let Err(e) = stream_b.0.write_all(&buf).await {
+                                            eprintln!("upstream {} is dead: {}", stream_b.1, e);
+                                            continue 'inner;
+                                        }
                                         println!(
                                             "starting copy_bidirectional {} <-> {}",
                                             addr, stream_b.1
@@ -50,8 +56,8 @@ pub async fn start_listener_for_downstream(
                                         break 'inner;
                                     }
                                     None => {
-                                        tokio::task::yield_now().await;
-                                        continue 'inner;
+                                        eprintln!("no upstream available for {}, dropping", addr);
+                                        break 'inner;
                                     }
                                 }
                             }

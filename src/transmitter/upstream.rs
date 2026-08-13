@@ -1,9 +1,8 @@
-use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::Mutex;
+use tokio::net::TcpListener;
+use crate::transmitter::pool::StreamPool;
 
-pub fn start_upstream_listener(upstream_addr: String, addr_stack: Arc<Mutex<Vec<(TcpStream, SocketAddr)>>>) {
+pub fn start_upstream_listener(upstream_addr: String, pool: Arc<StreamPool>) {
     let _ = tokio::task::Builder::new().name("upstream-listener").spawn(async move {
         match TcpListener::bind(&upstream_addr).await {
             Ok(listener) => {
@@ -11,8 +10,7 @@ pub fn start_upstream_listener(upstream_addr: String, addr_stack: Arc<Mutex<Vec<
                 loop {
                     if let Ok(stream) = listener.accept().await {
                         println!("accepted from upstream addr:{}", stream.1);
-                        let mut arr = addr_stack.lock().await;
-                        arr.push(stream)
+                        pool.push(stream).await;
                     }
                 }
             }
