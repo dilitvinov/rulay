@@ -18,6 +18,11 @@ Transmitter mode also accepts:
 
 - `--server-priv` — base64url (no-pad) encoded 32-byte X25519 server private key for REALITY auth verification
 - `--redirect-server` — `host:port` to redirect non-REALITY clients to (e.g. a cover website)
+- `--upstream-wait-ms` — how long an authenticated client waits for a free upstream before being dropped (default 30000; env `UPSTREAM_WAIT_MS`)
+
+Receiver mode also accepts:
+
+- `--idle-timeout-ms` — close an idle connection that heard no PING from the transmitter for this long, and dial a new one; protects against half-open connections after a silent network outage (default 15000; must stay well above the transmitter's 3s ping interval; env `IDLE_TIMEOUT_MS`)
 
 If any parameter is omitted, mode-specific defaults are used.
 

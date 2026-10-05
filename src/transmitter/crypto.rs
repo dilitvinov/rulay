@@ -149,3 +149,70 @@ pub fn verify_reality_auth(buf: &[u8], server_priv_b64: &str) -> Result<bool, &'
         Err(_) => Ok(false),
     }
 }
+
+/// Builds a minimal TLS ClientHello whose session_id is REALITY-authenticated for `server_priv_b64`
+/// (the client side of `verify_reality_auth`).
+#[cfg(test)]
+pub fn reality_client_hello(server_priv_b64: &str) -> Vec<u8> {
+    let server_priv: [u8; 32] = URL_SAFE_NO_PAD.decode(server_priv_b64).unwrap().try_into().unwrap();
+    let server_pub = PublicKey::from(&StaticSecret::from(server_priv));
+    let client_secret = StaticSecret::from([7u8; 32]);
+    let client_pub = PublicKey::from(&client_secret);
+    let random: [u8; 32] = std::array::from_fn(|i| i as u8);
+
+    // key_share extension with a single X25519 entry
+    let mut ext = Vec::new();
+    ext.extend_from_slice(&0x0033u16.to_be_bytes());
+    ext.extend_from_slice(&(2u16 + 4 + 32).to_be_bytes());
+    ext.extend_from_slice(&(4u16 + 32).to_be_bytes());
+    ext.extend_from_slice(&0x001Du16.to_be_bytes());
+    ext.extend_from_slice(&32u16.to_be_bytes());
+    ext.extend_from_slice(client_pub.as_bytes());
+
+    let mut body = vec![0x03, 0x03];
+    body.extend_from_slice(&random);
+    body.push(32);
+    body.extend_from_slice(&[0u8; 32]); // session_id, filled in below
+    body.extend_from_slice(&[0x00, 0x02, 0x13, 0x01]); // cipher_suites: TLS_AES_128_GCM_SHA256
+    body.extend_from_slice(&[0x01, 0x00]); // compression_methods: null
+    body.extend_from_slice(&(ext.len() as u16).to_be_bytes());
+    body.extend_from_slice(&ext);
+
+    // hello.Raw = handshake header + body; the AAD is this with the session_id still zeroed
+    let mut raw = vec![0x01];
+    raw.extend_from_slice(&(body.len() as u32).to_be_bytes()[1..]);
+    raw.extend_from_slice(&body);
+
+    let shared = client_secret.diffie_hellman(&server_pub);
+    let mut auth_key = [0u8; 32];
+    Hkdf::<Sha256>::new(Some(&random[..20]), shared.as_bytes())
+        .expand(b"REALITY", &mut auth_key)
+        .unwrap();
+    let session_id = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&auth_key))
+        .encrypt(Nonce::from_slice(&random[20..]), Payload { msg: &[0u8; 16], aad: &raw })
+        .unwrap();
+    raw[39..71].copy_from_slice(&session_id);
+
+    let mut record = vec![0x16, 0x03, 0x01];
+    record.extend_from_slice(&(raw.len() as u16).to_be_bytes());
+    record.extend_from_slice(&raw);
+    record
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const KEY_A: &str = "uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE";
+    const KEY_B: &str = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
+
+    #[test]
+    fn accepts_hello_for_own_key() {
+        assert_eq!(verify_reality_auth(&reality_client_hello(KEY_A), KEY_A), Ok(true));
+    }
+
+    #[test]
+    fn rejects_hello_for_other_key() {
+        assert_eq!(verify_reality_auth(&reality_client_hello(KEY_B), KEY_A), Ok(false));
+    }
+}

@@ -5,6 +5,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::task::JoinSet;
 use tokio::time::{sleep, timeout};
+use crate::stats::tx;
 use crate::transmitter::pool::StreamPool;
 use crate::{PING, PONG};
 
@@ -20,6 +21,7 @@ pub fn start_pinging(pool: Arc<StreamPool>) {
             for stream in pool.drain().await {
                 let pool = pool.clone();
                 checks.spawn(async move {
+                    let _pinging = tx::PINGING.enter();
                     if let Some(stream) = ping_once(stream).await {
                         pool.push(stream).await;
                     }
@@ -38,8 +40,13 @@ async fn ping_once(mut stream: (TcpStream, SocketAddr)) -> Option<(TcpStream, So
         stream.0.read_exact(&mut buf).await
     };
     match timeout(PONG_TIMEOUT, exchange).await {
-        Ok(Ok(_)) if buf == PONG => Some(stream),
+        Ok(Ok(_)) if buf == PONG => {
+            tx::PONG_OK.inc();
+            tx::LAST_PONG.touch();
+            Some(stream)
+        }
         _ => {
+            tx::PING_DROPPED.inc();
             println!("conn closed from upstream {}", stream.1);
             None
         }

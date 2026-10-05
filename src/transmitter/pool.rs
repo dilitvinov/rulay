@@ -24,6 +24,10 @@ impl StreamPool {
         self.notify.notify_one();
     }
 
+    pub async fn len(&self) -> usize {
+        self.streams.lock().await.len()
+    }
+
     pub async fn drain(&self) -> Vec<(TcpStream, SocketAddr)> {
         std::mem::take(&mut *self.streams.lock().await)
     }

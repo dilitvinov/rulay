@@ -1,5 +1,7 @@
 use std::sync::Arc;
 use tokio::net::TcpListener;
+use std::time::Duration;
+use crate::stats::tx;
 use crate::transmitter::pool::StreamPool;
 
 pub fn start_upstream_listener(upstream_addr: String, pool: Arc<StreamPool>) {
@@ -8,9 +10,19 @@ pub fn start_upstream_listener(upstream_addr: String, pool: Arc<StreamPool>) {
             Ok(listener) => {
                 println!("UPSTREAM addr:{:?}", upstream_addr);
                 loop {
-                    if let Ok(stream) = listener.accept().await {
-                        println!("accepted from upstream addr:{}", stream.1);
-                        pool.push(stream).await;
+                    match listener.accept().await {
+                        Ok(stream) => {
+                            println!("accepted from upstream addr:{}", stream.1);
+                            tx::UP_ACCEPTED.inc();
+                            tx::LAST_UP_ACCEPT.touch();
+                            pool.push(stream).await;
+                        }
+                        Err(e) => {
+                            // e.g. EMFILE; back off so a persistent error doesn't spin or flood the log
+                            tx::ACCEPT_ERR.inc();
+                            eprintln!("accept on upstream failed: {}", e);
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        }
                     }
                 }
             }

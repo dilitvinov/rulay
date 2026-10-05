@@ -1,9 +1,15 @@
+#[cfg(test)]
+mod e2e_tests;
 mod receiver;
+mod stats;
+#[cfg(test)]
+mod test_utils;
 mod transmitter;
 mod utils;
 
-use crate::receiver::start_receiver;
-use crate::transmitter::start_transmitter;
+use crate::receiver::{start_receiver, DEFAULT_IDLE_TIMEOUT};
+use crate::transmitter::{start_transmitter, DEFAULT_UPSTREAM_WAIT};
+use std::time::Duration;
 use clap::{Parser, ValueEnum};
 
 #[derive(Parser, Debug)]
@@ -23,6 +29,12 @@ struct Args {
     server_priv: Option<String>,
     #[arg(long)]
     redirect_server: Option<String>,
+    /// Transmitter: how long an authenticated client waits for a free upstream before being dropped
+    #[arg(long)]
+    upstream_wait_ms: Option<u64>,
+    /// Receiver: close an idle connection that heard no PING from the transmitter for this long
+    #[arg(long)]
+    idle_timeout_ms: Option<u64>,
 }
 const PING: &[u8] = &[1, 62, 34, 6];
 const PONG: &[u8] = &[6, 34, 62, 1];
@@ -48,6 +60,7 @@ enum Mode {
 }
 
 fn main() {
+    stats::init();
     let args = Args::parse();
     match args.mode {
         Mode::Transmitter => {
@@ -66,6 +79,9 @@ fn main() {
                 ),
                 args.redirect_server.unwrap_or_default(),
                 args.server_priv.unwrap_or_else(|| TRANSMITTER_PRIV.to_string()),
+                args.upstream_wait_ms
+                    .map(Duration::from_millis)
+                    .unwrap_or(DEFAULT_UPSTREAM_WAIT),
             );
         }
         Mode::Receiver => {
@@ -82,6 +98,9 @@ fn main() {
                         .unwrap_or_else(|| RECEIVER_DOWNSTREAM_SERVER.to_string()),
                     args.downstream_port.unwrap_or(RECEIVER_DOWNSTREAM_PORT)
                 ),
+                args.idle_timeout_ms
+                    .map(Duration::from_millis)
+                    .unwrap_or(DEFAULT_IDLE_TIMEOUT),
             );
         }
     }
