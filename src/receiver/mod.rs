@@ -2,6 +2,7 @@
 mod tests;
 
 use crate::{PING, PONG};
+use std::io;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -15,8 +16,13 @@ use crate::utils::copy_bidirectional_with_timeout;
 pub const CONN_NUM: usize = 50;
 
 /// How long an idle connection may go without a PING before it is considered dead, by default.
-/// The transmitter pings every 3s, so this is about five missed pings.
-pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(15);
+/// A live connection can legitimately stay silent for the transmitter's ping interval (3s) plus
+/// its PONG timeout (15s) when the previous PONG was slow, so this must stay above 18s.
+pub const DEFAULT_IDLE_TIMEOUT: Duration = Duration::from_secs(30);
+
+/// How long dialing the transmitter may take. Without it a SYN lost on a bad path parks a pool
+/// slot for the OS default (~2 min of SYN retries on Linux) instead of being retried right away.
+pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 pub fn start_receiver(upstream_addr: String, downstream_addr: String, idle_timeout: Duration) {
     let rt = Builder::new_multi_thread().enable_all().build();
@@ -43,7 +49,16 @@ pub async fn run_receiver(upstream_addr: String, downstream_addr: String, idle_t
         let _ = tokio::task::Builder::new().name("rcvr-conn").spawn(async move {
             let connected = {
                 let _connecting = rx::CONNECTING.enter();
-                TcpStream::connect(&downstream_addr).await
+                match timeout(CONNECT_TIMEOUT, TcpStream::connect(&downstream_addr)).await {
+                    Ok(connected) => connected,
+                    Err(_) => {
+                        rx::CONNECT_TIMED_OUT.inc();
+                        Err(io::Error::new(
+                            io::ErrorKind::TimedOut,
+                            format!("no answer in {:?}", CONNECT_TIMEOUT),
+                        ))
+                    }
+                }
             };
             match connected {
                 Ok(mut stream) => {
@@ -116,7 +131,7 @@ fn start_state_logger(sem: Arc<Semaphore>) {
             tick.tick().await;
             println!(
                 "[state] receiver up={}s permits_free={}/{} idle={} connecting={} active_sessions={} | \
-                 connect ok={} err={} | pings={} last_ping={} idle_closed={} idle_timed_out={} | \
+                 connect ok={} err={} timed_out={} | pings={} last_ping={} idle_closed={} idle_timed_out={} | \
                  sessions_started={} upstream_err={} | fds={} tasks={}",
                 stats::uptime().as_secs(),
                 sem.available_permits(),
@@ -126,6 +141,7 @@ fn start_state_logger(sem: Arc<Semaphore>) {
                 rx::ACTIVE.get(),
                 rx::CONNECT_OK.get(),
                 rx::CONNECT_ERR.get(),
+                rx::CONNECT_TIMED_OUT.get(),
                 rx::PINGS.get(),
                 rx::LAST_PING.ago(),
                 rx::IDLE_CLOSED.get(),

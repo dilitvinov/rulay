@@ -41,6 +41,10 @@ if [ -n "${UPSTREAM_WAIT_MS:-}" ]; then
     set -- "$@" --upstream-wait-ms "$UPSTREAM_WAIT_MS"
 fi
 
+if [ -n "${PONG_TIMEOUT_MS:-}" ]; then
+    set -- "$@" --pong-timeout-ms "$PONG_TIMEOUT_MS"
+fi
+
 if [ -n "${IDLE_TIMEOUT_MS:-}" ]; then
     set -- "$@" --idle-timeout-ms "$IDLE_TIMEOUT_MS"
 fi

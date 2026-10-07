@@ -127,6 +127,8 @@ pub mod rx {
     pub static CONNECTING: Gauge = Gauge::new();
     pub static CONNECT_OK: Counter = Counter::new();
     pub static CONNECT_ERR: Counter = Counter::new();
+    /// Dials to the transmitter abandoned after `CONNECT_TIMEOUT` (also counted in `CONNECT_ERR`).
+    pub static CONNECT_TIMED_OUT: Counter = Counter::new();
     /// Connections to the transmitter that are parked waiting for PING / data.
     pub static IDLE: Gauge = Gauge::new();
     pub static PINGS: Counter = Counter::new();

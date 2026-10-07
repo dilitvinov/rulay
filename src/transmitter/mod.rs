@@ -21,12 +21,19 @@ use crate::stats::{self, tx};
 /// How long an authenticated client waits for a free upstream before being dropped, by default.
 pub const DEFAULT_UPSTREAM_WAIT: Duration = Duration::from_secs(30);
 
+/// How long a pooled upstream may take to answer PING before it is closed, by default.
+/// Generous on purpose: on a lossy path a few TCP retransmits of one PING/PONG take seconds, and
+/// closing a live connection then empties the pool just when the receiver can't dial new ones.
+/// The receiver's idle timeout must stay above `ping::PING_INTERVAL` + this.
+pub const DEFAULT_PONG_TIMEOUT: Duration = Duration::from_secs(15);
+
 pub fn start_transmitter(
     upstream_addr: String,
     downstream_addr: String,
     redirect_addr: String,
     server_priv_b64: String,
     upstream_wait: Duration,
+    pong_timeout: Duration,
 ) {
     let rt = Builder::new_multi_thread().enable_all().build();
 
@@ -37,6 +44,7 @@ pub fn start_transmitter(
         redirect_addr,
         server_priv_b64,
         upstream_wait,
+        pong_timeout,
     ));
 }
 
@@ -47,14 +55,15 @@ pub async fn run_transmitter(
     redirect_addr: String,
     server_priv_b64: String,
     upstream_wait: Duration,
+    pong_timeout: Duration,
 ) {
     let pool = Arc::new(StreamPool::new());
 
     // start listener for upstream
     start_upstream_listener(upstream_addr, pool.clone());
 
-    // ping all available streams every 3 sec
-    start_pinging(pool.clone());
+    // ping all available streams every PING_INTERVAL
+    start_pinging(pool.clone(), pong_timeout);
 
     start_state_logger(pool.clone());
 

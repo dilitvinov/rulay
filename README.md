@@ -19,10 +19,13 @@ Transmitter mode also accepts:
 - `--server-priv` — base64url (no-pad) encoded 32-byte X25519 server private key for REALITY auth verification
 - `--redirect-server` — `host:port` to redirect non-REALITY clients to (e.g. a cover website)
 - `--upstream-wait-ms` — how long an authenticated client waits for a free upstream before being dropped (default 30000; env `UPSTREAM_WAIT_MS`)
+- `--pong-timeout-ms` — close a pooled upstream connection that took longer than this to answer the 3s PING; generous so that TCP retransmits on a lossy path don't kill live connections (default 15000; env `PONG_TIMEOUT_MS`)
 
 Receiver mode also accepts:
 
-- `--idle-timeout-ms` — close an idle connection that heard no PING from the transmitter for this long, and dial a new one; protects against half-open connections after a silent network outage (default 15000; must stay well above the transmitter's 3s ping interval; env `IDLE_TIMEOUT_MS`)
+- `--idle-timeout-ms` — close an idle connection that heard no PING from the transmitter for this long, and dial a new one; protects against half-open connections after a silent network outage (default 30000; must stay well above the transmitter's 3s ping interval plus its `--pong-timeout-ms`; env `IDLE_TIMEOUT_MS`)
+
+Dialing the transmitter gives up after 5s and is retried, so SYNs lost on a bad path don't hold pool slots for the OS default of ~2 minutes.
 
 If any parameter is omitted, mode-specific defaults are used.
 
@@ -149,6 +152,7 @@ Named tasks:
 |---|---|
 | `upstream-listener` | accepts receiver connections |
 | `ping-loop` | pings receiver connections in the pool |
+| `ping` | one PING/PONG exchange with a pooled receiver connection |
 | `downstream-client` | handles an incoming client |
 | `copy-bidir-client` | bidirectional copy client <-> receiver |
 | `copy-bidir-redirect` | bidirectional copy for redirected (non-REALITY) clients |

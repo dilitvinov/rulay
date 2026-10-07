@@ -8,7 +8,7 @@ mod transmitter;
 mod utils;
 
 use crate::receiver::{start_receiver, DEFAULT_IDLE_TIMEOUT};
-use crate::transmitter::{start_transmitter, DEFAULT_UPSTREAM_WAIT};
+use crate::transmitter::{start_transmitter, DEFAULT_PONG_TIMEOUT, DEFAULT_UPSTREAM_WAIT};
 use std::time::Duration;
 use clap::{Parser, ValueEnum};
 
@@ -32,6 +32,9 @@ struct Args {
     /// Transmitter: how long an authenticated client waits for a free upstream before being dropped
     #[arg(long)]
     upstream_wait_ms: Option<u64>,
+    /// Transmitter: close a pooled upstream that took longer than this to answer PING
+    #[arg(long)]
+    pong_timeout_ms: Option<u64>,
     /// Receiver: close an idle connection that heard no PING from the transmitter for this long
     #[arg(long)]
     idle_timeout_ms: Option<u64>,
@@ -82,6 +85,9 @@ fn main() {
                 args.upstream_wait_ms
                     .map(Duration::from_millis)
                     .unwrap_or(DEFAULT_UPSTREAM_WAIT),
+                args.pong_timeout_ms
+                    .map(Duration::from_millis)
+                    .unwrap_or(DEFAULT_PONG_TIMEOUT),
             );
         }
         Mode::Receiver => {

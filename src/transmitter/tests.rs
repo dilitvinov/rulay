@@ -12,6 +12,8 @@ use crate::{PING, PONG};
 
 const SERVER_KEY: &str = "uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE";
 const OTHER_KEY: &str = "AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE";
+/// Much shorter than the production default, so that tests about unanswered PINGs finish quickly.
+const PONG_TIMEOUT: Duration = Duration::from_secs(2);
 
 struct Transmitter {
     upstream: String,
@@ -20,11 +22,12 @@ struct Transmitter {
 
 /// Starts a transmitter on fresh ports; unauthenticated clients go to `redirect`.
 fn start(redirect: &str) -> Transmitter {
-    start_with(redirect, DEFAULT_UPSTREAM_WAIT)
+    start_with(redirect, DEFAULT_UPSTREAM_WAIT, PONG_TIMEOUT)
 }
 
-/// Like `start`, but authenticated clients give up waiting for an upstream after `upstream_wait`.
-fn start_with(redirect: &str, upstream_wait: Duration) -> Transmitter {
+/// Like `start`, but authenticated clients give up waiting for an upstream after `upstream_wait`,
+/// and pooled upstreams that don't answer PING within `pong_timeout` are closed.
+fn start_with(redirect: &str, upstream_wait: Duration, pong_timeout: Duration) -> Transmitter {
     let t = Transmitter { upstream: free_addr(), downstream: free_addr() };
     tokio::spawn(run_transmitter(
         t.upstream.clone(),
@@ -32,6 +35,7 @@ fn start_with(redirect: &str, upstream_wait: Duration) -> Transmitter {
         redirect.to_string(),
         SERVER_KEY.to_string(),
         upstream_wait,
+        pong_timeout,
     ));
     t
 }
@@ -82,8 +86,37 @@ async fn drops_upstream_connection_that_does_not_answer_ping() {
 
     let ping = read_n(&mut receiver, 4, "PING").await;
     assert_eq!(ping, PING);
-    // no PONG: the transmitter must give up after its PONG timeout (5s) and close
-    expect_closed(&mut receiver, 8, "unanswered upstream to be closed").await;
+    // no PONG: the transmitter must give up after its PONG timeout and close
+    expect_closed(&mut receiver, 5, "unanswered upstream to be closed").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn keeps_upstream_whose_pong_is_late_but_within_timeout() {
+    let t = start_with(&free_addr(), DEFAULT_UPSTREAM_WAIT, Duration::from_secs(4));
+    let mut receiver = connect_retry(&t.upstream).await;
+
+    // a PONG delayed by retransmits on a lossy path: late, but inside the PONG timeout
+    assert_eq!(read_n(&mut receiver, 4, "PING #1").await, PING);
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    receiver.write_all(PONG).await.unwrap();
+
+    // the connection must stay pooled and keep being pinged
+    assert_eq!(read_n(&mut receiver, 4, "PING #2 after a late PONG").await, PING);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn slow_upstream_does_not_delay_pings_of_the_others() {
+    let t = start_with(&free_addr(), DEFAULT_UPSTREAM_WAIT, Duration::from_secs(20));
+    let mut silent = connect_retry(&t.upstream).await;
+    let mut healthy = connect_retry(&t.upstream).await;
+
+    // both get pinged in the same round; one never answers and sits out its whole PONG timeout
+    assert_eq!(read_n(&mut silent, 4, "PING on the silent upstream").await, PING);
+    assert_eq!(read_n(&mut healthy, 4, "PING #1 on the healthy upstream").await, PING);
+    healthy.write_all(PONG).await.unwrap();
+
+    // the healthy one must be pinged again one interval later, not after the silent one gives up
+    assert_eq!(read_n(&mut healthy, 4, "PING #2 on the healthy upstream").await, PING);
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -156,7 +189,7 @@ async fn closes_client_that_sends_nothing() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn drops_client_when_no_upstream_arrives_in_time() {
-    let t = start_with(&free_addr(), Duration::from_millis(100));
+    let t = start_with(&free_addr(), Duration::from_millis(100), PONG_TIMEOUT);
     let mut client = connect_retry(&t.downstream).await;
     client.write_all(&reality_client_hello(SERVER_KEY)).await.unwrap();
 
@@ -167,7 +200,7 @@ async fn drops_client_when_no_upstream_arrives_in_time() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn drops_half_open_upstream_instead_of_handing_it_out() {
-    let t = start_with(&free_addr(), Duration::from_millis(100));
+    let t = start_with(&free_addr(), Duration::from_millis(100), PONG_TIMEOUT);
     let link = LossyLink::start(t.upstream.clone()).await;
     let mut receiver = connect_retry(&link.addr).await;
 

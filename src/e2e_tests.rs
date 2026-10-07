@@ -5,7 +5,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use crate::receiver::{run_receiver, CONN_NUM, DEFAULT_IDLE_TIMEOUT};
 use crate::test_utils::*;
-use crate::transmitter::{reality_client_hello, run_transmitter, DEFAULT_UPSTREAM_WAIT};
+use crate::transmitter::{reality_client_hello, run_transmitter, DEFAULT_PONG_TIMEOUT, DEFAULT_UPSTREAM_WAIT};
 
 const SERVER_KEY: &str = "uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE";
 
@@ -19,6 +19,7 @@ async fn client_reaches_target_through_tunnel_and_close_propagates() {
         free_addr(),
         SERVER_KEY.to_string(),
         DEFAULT_UPSTREAM_WAIT,
+        DEFAULT_PONG_TIMEOUT,
     ));
     tokio::spawn(run_receiver(target.local_addr().unwrap().to_string(), upstream, DEFAULT_IDLE_TIMEOUT));
 
@@ -50,9 +51,10 @@ async fn tunnel_recovers_after_silent_network_outage() {
         free_addr(),
         SERVER_KEY.to_string(),
         Duration::from_secs(20),
+        Duration::from_secs(2),
     ));
     let link = LossyLink::start(upstream).await;
-    // real transmitter pings every 3s, so the idle timeout must sit comfortably above that
+    // real transmitter pings every 3s and waits 2s for PONG here, so the idle timeout must sit above that
     tokio::spawn(run_receiver(
         target.local_addr().unwrap().to_string(),
         link.addr.clone(),
