@@ -98,6 +98,8 @@ FLOW="${FLOW:-$(awk '
 ' "${CONFIG_PATH}")}"
 
 CLIENT_NAME="${CLIENT_NAME:-reality-${SERVER_HOST}}"
+# The target does not support X25519MLKEM768, so chrome/firefox fingerprints fail the REALITY handshake.
+FINGERPRINT="${FINGERPRINT:-safari}"
 
 if [[ -z "${XRAY_PORT}" || -z "${UUID}" || -z "${PRIVATE_KEY}" || -z "${REALITY_SERVER_NAME}" || -z "${REALITY_DEST}" || -z "${SHORT_ID}" ]]; then
   echo "Failed to read required values from ${CONFIG_PATH}"
@@ -141,7 +143,7 @@ ufw --force enable
 cd "${DEPLOY_DIR}"
 docker compose up -d
 
-VLESS_URL="vless://${UUID}@${SERVER_HOST}:${XRAY_PORT}?type=tcp&security=reality&pbk=${PUBLIC_KEY}&fp=chrome&sni=${REALITY_SERVER_NAME}&sid=${SHORT_ID}&spx=%2F&encryption=none"
+VLESS_URL="vless://${UUID}@${SERVER_HOST}:${XRAY_PORT}?type=tcp&security=reality&pbk=${PUBLIC_KEY}&fp=${FINGERPRINT}&sni=${REALITY_SERVER_NAME}&sid=${SHORT_ID}&spx=%2F&encryption=none"
 
 if [[ -n "${FLOW}" ]]; then
   VLESS_URL="${VLESS_URL}&flow=${FLOW}"
