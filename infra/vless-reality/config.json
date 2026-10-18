@@ -68,7 +68,7 @@
             "d0"
           ],
           "show": true,
-          "target": "vkvd293.okcdn.ru",
+          "target": "vkvd293.okcdn.ru:443",
           "xver": 0
         },
         "security": "reality",
