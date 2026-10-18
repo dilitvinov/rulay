@@ -20,7 +20,7 @@
       "flow": "xtls-rprx-vision",
       "tls": {
         "enabled": true,
-        "server_name": "strm-mar-190.strm.yandex.net",
+        "server_name": "vkvd293.okcdn.ru",
         "utls": {
           "enabled": true,
           "fingerprint": "chrome"

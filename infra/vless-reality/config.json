@@ -55,7 +55,7 @@
           "mldsa65Seed": "F-31ompjk7zsivD7iG33MSwtdmzmzd8VO1aA6pjW77s",
           "privateKey": "uM5Zol5nBgyqDrn2RYGhmTeoONiULxeLMhkeDqMtMUE",
           "serverNames": [
-            "strm-mar-190.strm.yandex.net"
+            "vkvd293.okcdn.ru"
           ],
           "shortIds": [
             "584cd7313829f366",
@@ -68,7 +68,7 @@
             "d0"
           ],
           "show": true,
-          "target": "strm-mar-190.strm.yandex.net:443",
+          "target": "vkvd293.okcdn.ru",
           "xver": 0
         },
         "security": "reality",
